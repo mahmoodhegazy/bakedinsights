@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  
+  <!-- White background -->
+  <rect width="400" height="400" fill="#ffffff"/>
+
+  <!-- Bread loaf icon -->
+  <path fill="#3498db" d="M100 160h200v100H100z"/>
+  <path fill="#2980b9" d="M280 180v60H120v-60h160z"/>
+  <ellipse cx="200" cy="160" rx="100" ry="20" fill="#3498db"/>
+  
+  <!-- Text -->
+  <text x="50%" y="320" font-size="48" font-family="Arial, sans-serif" font-weight="bold" fill="#2c3e50" text-anchor="middle">
+    Baked Insights
+  </text>
+  
+</svg>

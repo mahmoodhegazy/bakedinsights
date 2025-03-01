@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"
+    environment:
+      - DATABASE_URL=postgresql://hegazy:direwolf@db:5432/bakedinsights
+      - JWT_SECRET_KEY=your-secret-key-here
+      - FLASK_ENV=development  # Use development for local setup
+    volumes:
+      - ./backend:/app  # Mount local backend code for development
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend/baked-insights-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"  # Map to port 3000 locally
+    volumes:
+      - ./frontend:/app  # Mount local frontend code for development
+      - /app/node_modules  # Preserve container node_modules
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=hegazy
+      - POSTGRES_PASSWORD=direwolf
+      - POSTGRES_DB=bakedinsights
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
