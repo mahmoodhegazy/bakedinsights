@@ -9,6 +9,8 @@ from app import db
 from app.models.checklist import (Checklist, ChecklistAssignment,
                                   ChecklistField, ChecklistItem,
                                   ChecklistTemplate)
+from app.utils import FileManager
+from werkzeug.utils import secure_filename
 
 
 class ChecklistService:
@@ -182,7 +184,7 @@ class ChecklistService:
             raise Exception(f"Error deleting file: {str(e)}")
 
     @staticmethod
-    def update_checklist_template(data: Dict, creator_id: int) -> ChecklistTemplate:
+    def update_checklist_template(data: Dict) -> ChecklistTemplate:
         """
         Create a new checklist template
 
@@ -216,10 +218,14 @@ class ChecklistService:
                 if not complete_by_time:
                     complete_by_time = None
 
+                if "name" not in field_data or len(field_data["name"]) == 0:
+                    raise ValueError("Must specify field name")
+
                 name = field_data["name"]
                 description = field_data["description"]
                 order = field_data["order"]
                 field_id = field_data["id"]
+
                 if field_id < 0:
                     field = ChecklistField(
                         template_id=template_id,
@@ -233,7 +239,7 @@ class ChecklistService:
                 else:
                     field = ChecklistField.query.get(field_id)
                     if not field:
-                        return False
+                        raise ValueError("Invalid checklist field")
                     field.name = name
                     field.description = description
                     field.data_type = data_type
@@ -397,12 +403,19 @@ class ChecklistService:
             elif data_type == "lot-number":
                 value = item.value_lotnum
 
+            value_fpath = item.value_fpath
+            if value_fpath:
+                value_fpath = value_fpath \
+                        + FileManager.PRESIGNED_URL_DEMARKATION \
+                        + FileManager.get_file(value_fpath)
+
             results.append({
                 "id": item.id,
                 "field_id": item.field_id,
                 "order": field.order,
+                "data_type": data_type,
                 "value": value,
-                "value_fpath": item.value_fpath,
+                "value_fpath": value_fpath,
                 "comment": item.comment,
                 "completed_at": item.completed_at.isoformat() if item.completed_at else None,
                 "submitted": checklist.submitted,
@@ -472,15 +485,27 @@ class ChecklistService:
         if data_type == "text":
             value_text = data["value"]
         elif data_type == "number":
-            value_num = data["value"]
+            value_num = float(data["value"])
         elif data_type == "boolean":
-            value_bool = data["value"]
+            value_bool = data['value'] in ["true", "True", "TRUE"]
         elif data_type == "sku":
             value_sku = data["value"]
         elif data_type == "lot-number":
             value_lotnum = data["value"]
 
-        item.value_fpath = data.get("value_fpath")
+        value_fpath = data.get("value_fpath")
+        if hasattr(value_fpath, "filename"):  # if new file object, then upload to s3
+            value_fpath = FileManager.save_file_to_bucket(
+                filename=secure_filename(value_fpath.filename),
+                file=value_fpath)
+            if item.value_fpath:
+                FileManager.delete_file_from_bucket(filename=secure_filename(item.value_fpath))
+            item.value_fpath = value_fpath
+        elif not value_fpath:
+            if item.value_fpath:
+                FileManager.delete_file_from_bucket(filename=secure_filename(item.value_fpath))
+            item.value_fpath = value_fpath
+
         item.comment = data.get("comment")
         item.value_text = value_text
         item.value_num = value_num

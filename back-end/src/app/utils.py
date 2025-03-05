@@ -42,7 +42,7 @@ class FileManager:
                 attempt_num += 1
                 attempt_filename = f"{attempt_num}-{filename}"
             else:
-                bucket.Object(filename).put(Body=file.read())
+                bucket.Object(attempt_filename).put(Body=file.read())
                 unique_filename = True
                 break
         return attempt_filename

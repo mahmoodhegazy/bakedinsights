@@ -5,7 +5,7 @@ All rights reserved.
 
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
-from app.types import ADMIN_ROLES, VALID_ROLES
+from app.types import ADMIN_ROLES, SUPER_ADMIN_ROLES, VALID_ROLES
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
@@ -37,16 +37,10 @@ def create_user():
     }
     """
     # Verify super_admin role
-    if not AuthService.validate_user_role(get_jwt_identity(), ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES):
         return jsonify({"message": "Unauthorized - Super Admin access required"}), 403
 
     data = request.get_json()
-
-    # Validate password strength if provided
-    if 'password' in data and not UserService.validate_password(data['password']):
-        return jsonify({
-            "message": "Password must be at least 8 characters and contain uppercase, lowercase, and numbers"
-        }), 400
 
     try:
         user = UserService.create_user(data)
@@ -99,7 +93,7 @@ def get_users():
             }
 
             # Add additional info for admin
-            if claims["role"] in ADMIN_ROLES:
+            if claims["role"] in SUPER_ADMIN_ROLES:
                 user_data.update({
                     "employee_id": user.employee_id,
                     "role": user.role,
@@ -146,7 +140,7 @@ def get_user(user_id):
             "deactivated": user.deactivated,
         }
 
-        if claims['role'] in ADMIN_ROLES:
+        if claims["role"] in SUPER_ADMIN_ROLES:
             user_data.update({
                 "employee_id": user.employee_id,
                 "role": user.role,
@@ -189,7 +183,8 @@ def get_current_user():
             "username": user.username,
             "name": user.name,
             "role": user.role,
-            "is_admin_role": user.role in ADMIN_ROLES,
+            "is_super_admin_role": user.role in SUPER_ADMIN_ROLES,
+            "is_admin_role": user.role in ADMIN_ROLES + SUPER_ADMIN_ROLES,
             "employee_id": user.employee_id,
             "email": user.email,
             "phone": user.phone,
@@ -228,25 +223,19 @@ def update_user(user_id):
     claims = get_jwt()
 
     # Only allow updates to own account or if super_admin
-    if not AuthService.validate_user_id(user_id) and claims["role"] not in ADMIN_ROLES:
-        return jsonify({"message": "Unauthorized"}), 403
+    if not AuthService.validate_user_id(user_id) and claims["role"] not in SUPER_ADMIN_ROLES:
+        return jsonify({"message": "Unauthorized to update user"}), 403
 
     data = request.get_json()
 
-    # Only super_admin can update roles
-    if claims["role"] not in ADMIN_ROLES:
+    # Only super_admin can update specific account information
+    if claims["role"] not in SUPER_ADMIN_ROLES:
         data.pop("name", None)
         data.pop("username", None)
         data.pop("email", None)
         data.pop("employee_id", None)
         data.pop("role", None)
         data.pop("deactivated", None)
-
-    # Validate password if provided
-    if 'password' in data and not UserService.validate_password(data['password']):
-        return jsonify({
-            "message": "Password must be at least 8 characters and contain uppercase, lowercase, and numbers"
-        }), 400
 
     try:
         user = UserService.update_user(user_id, data)
@@ -274,8 +263,8 @@ def delete_user(user_id):
         "message": string
     }
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), ADMIN_ROLES):
-        return jsonify({"message": "Unauthorized - Super Admin access required"}), 403
+    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES):
+        return jsonify({"message": "Unauthorized - Super Admin access required to deactivate user"}), 403
 
     if AuthService.validate_user_id(user_id):
         return jsonify({"message": "Unauthorized - Cannot delete the acocunt you are currently logged in with"}), 403

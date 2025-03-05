@@ -165,11 +165,12 @@ def update_table_data(tab_id):
     if not TableService.validate_user_for_tab(user_id=user_id, tab_id=tab_id):
         return jsonify({"message": "Unauthorized"}), 403
 
-    # Parse form data into above format: "'updates[index][key]' => updates: List[{column_id:int, value:str}]"
     data = dict(request.form)
     record_id = data.pop("record_id")
     if request.files:
         data.update(dict(request.files))
+
+    # Parse form data: "'updates[index][key]' => updates: List[{column_id:int, value:str}]"
     updates = [{"column_id": None, "value": None} for k in data if "updates" in k and "column_id" in k]
     for key in data:
         if "updates" in key:  # updates[index][key]

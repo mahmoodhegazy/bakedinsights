@@ -10,6 +10,8 @@ from app import db
 from app.models.user import User
 from app.types import VALID_ROLES
 
+# from validate_email import validate_email
+
 
 class UserService:
     """ User Service """
@@ -41,12 +43,22 @@ class UserService:
 
         # Validate required fields
         required_fields = ['name', 'username', 'email', 'employee_id', 'password', 'role']
-        if not all(field in data for field in required_fields):
+        if not all(field in data for field in required_fields) or not all(len(data[f]) > 0 for f in required_fields):
             raise ValueError("Missing required fields")
 
         # Validate role
         if data['role'] not in VALID_ROLES:
             raise ValueError(f"Invalid role. Must be one of: {', '.join(VALID_ROLES)}")
+
+        # Validate password strength if provided
+        if not UserService.validate_password(data['password']):
+            raise ValueError("Password must be at least 8 characeters and contain a number and uppercase and lowercase letters")
+
+        # if not validate_email(email_address=data["email"],
+        #                       check_regex=True, check_mx=True,
+        #                       from_address='my@from.addr.ess', helo_host='my.host.name',
+        #                       smtp_timeout=10, dns_timeout=10, use_blacklist=True):
+        #     raise ValueError("Invalid email")
 
         # Check for existing user
         if User.query.filter_by(username=data['username']).first():
@@ -146,7 +158,9 @@ class UserService:
             user.employee_id = data['employee_id']
 
         # Update password if provided
-        if 'password' in data:
+        if 'password' in data and len(data['password']) > 0:
+            if not UserService.validate_password(data['password']):
+                raise ValueError("Password must be at least 8 characeters and contain a number and uppercase and lowercase letters")
             user.set_password(data['password'])
 
         # Update role if provided (super_admin only operation)

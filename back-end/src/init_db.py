@@ -14,7 +14,7 @@ def init_db():
         # Drop all tables and recreate them
         db.drop_all()
         db.create_all()
-        
+
         # Create users
         users = {
             'super_admin': User(
@@ -23,7 +23,7 @@ def init_db():
                 email='admin@test.com',
                 phone='123-456-7890',
                 employee_id='EMP001',
-                role='admin',
+                role='super_admin',
                 deactivated=False
             ),
             'operator': User(
@@ -50,7 +50,7 @@ def init_db():
         for user in users.values():
             user.set_password('password123')
             db.session.add(user)
-        
+
         db.session.commit()
 
         # Create checklist template
@@ -100,7 +100,7 @@ def init_db():
             user_id=users['operator'].id
         )
         db.session.add(assignment)
-        
+
         # Create production records table
         table = Table(
             name='Production Records',

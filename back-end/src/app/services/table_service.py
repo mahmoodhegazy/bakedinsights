@@ -188,7 +188,7 @@ class TableService:
             table_data = []
             for t in c.table_data:
                 value = None
-                if data_type == "text":
+                if data_type == "text" or data_type == "long-text":
                     value = t.value_text
                 elif data_type == "number":
                     value = t.value_num
@@ -551,12 +551,12 @@ class TableService:
                 value_lotnum,
                 value_user_id,
             ) = None, None, None, None, None, None, None, None
-            if data_type == 'text':
+            if data_type == 'text' or data_type == 'long-text':
                 value_text = update['value']
             elif data_type == 'number':
                 value_num = update['value']
             elif data_type == 'boolean':
-                value_bool = update['value']
+                value_bool = update['value'] in ["true", "True", "TRUE"]
             elif data_type == 'date':
                 value_date = update['value']
             elif data_type == 'file':
