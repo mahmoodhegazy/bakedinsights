@@ -1,17 +1,21 @@
 import { Outlet } from 'react-router-dom';
 import React from 'react';
 import { useSidebarState } from '../hooks/useSidebarState';
+import { useChatState } from '../hooks/useChatState';
 import { FaCopyright } from 'react-icons/fa';
 
 export const ContentLayout: React.FC = () => {
-    const { isVisible } = useSidebarState();
+    const { isVisible: isSidebarVisible } = useSidebarState();
+    const { isVisible: isChatVisible } = useChatState();
 
   return (
     <>
     <div dir="ltr">
       <div className="relative top-16 left-0 w-full h-[calc(100vh-64px)] overflow-y-hidden bg-gray-200">
         <div className="h-full overflow-y-auto">
-            <div className={`h-full p-4 transition-all duration-300 ${isVisible ? 'sm:ml-64' : 'sm:ml-0'}`}>
+            <div className={`h-full p-4 transition-all duration-300 
+              ${isSidebarVisible ? 'sm:ml-64' : 'sm:ml-0'}
+              ${isChatVisible ? 'sm:mr-96 lg:mr-96 md:mr-96' : 'sm:mr-0'}`}>
                 <div className="h-full relative overflow-x-auto">
                     <div className="flex flex-col flex-1 max-h-full shadow-md sm:rounded-lg p-4 bg-white">
                         <Outlet />
@@ -26,4 +30,4 @@ export const ContentLayout: React.FC = () => {
     </div>
     </>
   );
-}
+};

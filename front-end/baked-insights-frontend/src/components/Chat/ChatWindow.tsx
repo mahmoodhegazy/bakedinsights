@@ -773,7 +773,10 @@ const contextSummary = React.useMemo(() => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-lg flex flex-col z-50">
+    <div className={`fixed right-0 top-16 h-[calc(100vh-64px)] w-96 bg-white shadow-lg flex flex-col z-40 
+      transition-transform duration-300 transform ${
+      isOpen ? 'translate-x-0' : 'translate-x-full'
+    }`}>
       {/* Header with filters */}
       <div className="flex flex-col p-4 border-b border-gray-200">
         <div className="flex justify-between items-center mb-4">
