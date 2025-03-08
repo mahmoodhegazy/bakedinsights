@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IoMdClose } from "react-icons/io";
+import { IoAttach, IoDocument } from "react-icons/io5";
 import Select from 'react-select';
-import { AIService, ChatMessage } from '../../services/aiService';
+import { AIService, ChatMessage, FileContext } from '../../services/aiService';
+import { FileService } from '../../services/fileService';
 import { toast } from 'react-toastify';
 import FormattedMessage from './FormattedMessage';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { formatDate } from '../../utils/dateUtils';
 import { APIChecklist, APIChecklistField, APIChecklistItem, APIChecklistTemplate } from '../../types/checklist';
+import { FileContextService } from '../../services/fileContextService';
 
 // Interface for table data
 interface TableData {
@@ -53,19 +56,40 @@ interface FormattedChecklist {
   items: FormattedChecklistItem[];
 }
 
+// Interface for uploaded file
+interface UploadedFile {
+  file: File;
+  content?: any; // Can be FileContent or structured data from CSV/Excel
+  isProcessing: boolean;
+  isProcessed: boolean;
+  error?: string;
+}
+
+// Define interfaces for CSV/Excel structured data
+interface StructuredFileData {
+  headers?: string[];
+  data?: Array<Record<string, any> | Array<any>>;
+  [key: string]: any; // Allow other properties
+}
+
 interface ChatWindowProps {
   isOpen: boolean; // Controls visibility of the chat window
   onClose: () => void; // Function to close the chat window
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]); // Array of chat messages, where each message has a role ('user' or 'assistant') and content
-  const [input, setInput] = useState(''); // Input text for the user to send messages
-  const [isLoading, setIsLoading] = useState(false); // Loading state for when the AI is processing a response
+  const [messages, setMessages] = useState<ChatMessage[]>([]); // Array of chat messages
+  const [input, setInput] = useState(''); // Input text for the user
+  const [isLoading, setIsLoading] = useState(false); // Loading state for AI processing
   const [selectedSKU, setSelectedSKU] = useState<SelectOption | null>(null);
-  const [selectedLotNumber, setSelectedLotNumber] = useState<SelectOption | null>(null); // New state for lot number
+  const [selectedLotNumber, setSelectedLotNumber] = useState<SelectOption | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const messagesEndRef = useRef<HTMLDivElement>(null); // Reference to the last message element to scroll to handle auto-scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Reference for auto-scrolling
+  const fileInputRef = useRef<HTMLInputElement>(null); // Reference for file input
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]); // State for uploaded files
+  const [showFileUploadArea, setShowFileUploadArea] = useState(false); // Toggle for file upload area
+  const [s3FileContext, setS3FileContext] = useState<string>('');
+  const [fileContextCount, setFileContextCount] = useState<number>(0);
 
   // Query to fetch all checklist templates (to get fields data)
   const { data: checklistTemplates } = useQuery<APIChecklistTemplate[]>({
@@ -162,7 +186,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
               if (column.header.column_data_type === 'sku') {
                 column.data.forEach(item => {
                   if (item.value) {
-                    // console.log(`Found table SKU: ${item.value}`);
                     skuSet.add(item.value);
                   }
                 });
@@ -203,7 +226,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       }
 
       const skuArray = Array.from(skuSet);
-      console.log(`Found ${skuArray.length} unique SKUs:`, skuArray);
       
       return skuArray.map(sku => ({
         value: sku,
@@ -299,7 +321,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
           
           if (!hasLotNumber) return false;
         }
-
 
         return true;
       })
@@ -426,25 +447,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
                 matchingRecordIds = dateRecords;
               }
             }
-            
-            // if (dateColumn) {
-            //   const dateRecords = dateColumn.data
-            //     .filter((item: { value: string; }) => {
-            //       const itemDate = new Date(item.value).toISOString().split('T')[0];
-            //       return itemDate === selectedDate;
-            //     })
-            //     .map((item: { record_id: number; }) => item.record_id);
-              
-            //   if (selectedSKU) {
-            //     dateRecords.forEach((recordId: number) => {
-            //       if (matchingRecordIds.has(recordId)) {
-            //         matchingRecordIds.add(recordId);
-            //       }
-            //     });
-            //   } else {
-            //     dateRecords.forEach((recordId: number) => matchingRecordIds.add(recordId));
-            //   }
-            // }
           }
           
           if (matchingRecordIds.size > 0) {
@@ -479,6 +481,156 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     };
   }, [tableContextData, filteredChecklistData]);
 
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Add files to state
+    const newUploadedFiles: UploadedFile[] = Array.from(files).map(file => ({
+      file,
+      isProcessing: true,
+      isProcessed: false
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...newUploadedFiles]);
+    
+    // Process each file
+    for (let i = 0; i < newUploadedFiles.length; i++) {
+      const uploadedFile = newUploadedFiles[i];
+      
+      try {
+        // Use processFile instead of readFile to get file-type specific processing
+        const processedContent = await FileService.processFile(uploadedFile.file);
+        
+        setUploadedFiles(prev => {
+          const updatedFiles = [...prev];
+          const fileIndex = updatedFiles.findIndex(
+            f => f.file.name === uploadedFile.file.name && 
+                f.file.size === uploadedFile.file.size
+          );
+          
+          if (fileIndex !== -1) {
+            updatedFiles[fileIndex] = {
+              ...updatedFiles[fileIndex],
+              content: processedContent,
+              isProcessing: false,
+              isProcessed: true
+            };
+          }
+          
+          return updatedFiles;
+        });
+        
+        // Let the user know processing was successful
+        toast.success(`Successfully processed ${uploadedFile.file.name}`);
+      } catch (error) {
+        console.error('Error processing file:', error);
+        
+        setUploadedFiles(prev => {
+          const updatedFiles = [...prev];
+          const fileIndex = updatedFiles.findIndex(
+            f => f.file.name === uploadedFile.file.name && 
+                f.file.size === uploadedFile.file.size
+          );
+          
+          if (fileIndex !== -1) {
+            updatedFiles[fileIndex] = {
+              ...updatedFiles[fileIndex],
+              isProcessing: false,
+              isProcessed: false,
+              error: error instanceof Error ? error.message : 'Error processing file'
+            };
+          }
+          
+          return updatedFiles;
+        });
+        
+        toast.error(`Error processing file ${uploadedFile.file.name}`);
+      }
+    }
+    
+    // Clear the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Remove a file from the uploaded files
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => {
+      const newFiles = [...prev];
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
+  };
+
+  // Prepare file contexts for AI
+  const prepareFileContexts = (): FileContext[] => {
+    return uploadedFiles
+      .filter(file => file.isProcessed && file.content)
+      .map(file => {
+        const content = file.content as any;
+        
+        // Format structured data (for CSV, Excel) into a readable string
+        let formattedContent = '';
+        
+        if (typeof content === 'object' && content !== null) {
+          // Check if it matches our structured data format (CSV/Excel)
+          const structuredData = content as StructuredFileData;
+          
+          if (structuredData.headers && Array.isArray(structuredData.data)) {
+            // This is likely CSV data or processed Excel data
+            formattedContent = `Headers: ${structuredData.headers.join(', ')}\n`;
+            formattedContent += 'Data:\n';
+            
+            // Format each row
+            structuredData.data.forEach((row, index) => {
+              if (typeof row === 'object' && row !== null) {
+                if (!Array.isArray(row)) {
+                  // Handle row as object with named properties
+                  formattedContent += `Row ${index + 1}: ${Object.entries(row)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join(', ')}\n`;
+                } else {
+                  // Handle row as array
+                  formattedContent += `Row ${index + 1}: ${row.join(', ')}\n`;
+                }
+              } else {
+                // Handle primitive value
+                formattedContent += `Row ${index + 1}: ${String(row)}\n`;
+              }
+            });
+          } else if (content.content && typeof content.content === 'string') {
+            // This is likely a text file with a content property
+            formattedContent = content.content;
+          } else {
+            // Default: try to stringify the object
+            try {
+              formattedContent = JSON.stringify(content, null, 2);
+            } catch (e) {
+              formattedContent = 'Complex data structure (unable to display as text)';
+            }
+          }
+        } else if (typeof content === 'string') {
+          // Plain text content
+          formattedContent = content;
+        } else {
+          // Unknown format, try to convert to string
+          formattedContent = String(content || '');
+        }
+        
+        return {
+          metadata: {
+            name: file.file.name,
+            type: file.file.type,
+            size: file.file.size
+          },
+          content: formattedContent
+        };
+      });
+  };
+
   // Scroll handling
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -491,13 +643,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   // Message handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    if (!input.trim() && uploadedFiles.length === 0) return;
+    if (isLoading) return;
+  
+    let userMessage: ChatMessage;
+    
+    // If there's no input but files are uploaded, create a default message
+    if (!input.trim() && uploadedFiles.length > 0) {
+      userMessage = { 
+        role: 'user', 
+        content: `I'm uploading ${uploadedFiles.length} file(s). Please analyze the content.`
+      };
+    } else {
+      userMessage = { role: 'user', content: input.trim() };
+    }
+    
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-
+  
     try {
       const contextMessages: ChatMessage[] = [...messages];
       
@@ -515,7 +679,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         contextMessages.push(contextMessage);
       }
       
-      const response = await AIService.getChatResponse([...contextMessages, userMessage]);
+      // Add S3 file context if available
+      if (s3FileContext) {
+        const fileContextMessage: ChatMessage = {
+          role: 'system',
+          content: `Attached files found for current context:\n${s3FileContext}`
+        };
+        contextMessages.push(fileContextMessage);
+      }
+      
+      // Prepare file contexts from uploaded files
+      const fileContexts = prepareFileContexts();
+      
+      // Debug logging to check the file contexts
+      console.log("File contexts prepared for AI:", fileContexts);
+      
+      const response = await AIService.getChatResponse([...contextMessages, userMessage], fileContexts);
       const aiMessage: ChatMessage = { role: 'assistant', content: response };
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
@@ -526,43 +705,70 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     }
   };
 
+// Fetch file context when filters change
+useEffect(() => {
+  const fetchFileContext = async () => {
+    if (selectedSKU || selectedLotNumber || selectedDate) {
+      const result = await FileContextService.getFileContext(
+        selectedSKU?.value,
+        selectedLotNumber?.value,
+        selectedDate
+      );
+      
+      setS3FileContext(result.formatted_context);
+      setFileContextCount(result.file_count);
+    } else {
+      setS3FileContext('');
+      setFileContextCount(0);
+    }
+  };
+  
+  fetchFileContext();
+}, [selectedSKU, selectedLotNumber, selectedDate]);
+
   // Initial welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const welcomeMessage: ChatMessage = {
         role: 'assistant',
-        content: `Welcome to Baked Insights!\n\nI'm your AI assistant, and I can help you analyze production data and answer questions about:\n\n* Specific SKUs and dates in your production records and checklists\n* Production trends and patterns\n* Quality metrics and compliance\n* Historical data analysis\n\nSelect a SKU and/or date above to get specific information, or ask me any general questions about the system.`
+        content: `Welcome to Baked Insights!\n\nI'm your AI assistant, and I can help you analyze production data and answer questions about:\n\n* Specific SKUs and dates in your production records and checklists\n* Production trends and patterns\n* Quality metrics and compliance\n* Historical data analysis\n\nYou can upload files for analysis, or select a SKU and/or date above to get specific information. Feel free to ask me any general questions about the system.`
       };
       setMessages([welcomeMessage]);
     }
   }, [isOpen]);
 
-  // Current context summary for display
-  const contextSummary = React.useMemo(() => {
-    if (!contextData) return null;
-    
-    const tableCount = Object.keys(contextData.tables).length;
-    const checklistCount = contextData.checklists.length;
-    
-    if (tableCount === 0 && checklistCount === 0) return null;
-    
-    const contextFilters = [];
-    if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
-    if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
-    if (selectedDate) contextFilters.push(`Date: ${selectedDate}`);
-    
-    const filterText = contextFilters.length > 0 
-      ? `Filters: ${contextFilters.join(', ')} | ` 
-      : '';
-    
-    return (
-      <div className="text-xs text-gray-500 mt-1">
-        {filterText}Using: {tableCount > 0 ? `${tableCount} tables` : ''} 
-        {tableCount > 0 && checklistCount > 0 ? ' and ' : ''}
-        {checklistCount > 0 ? `${checklistCount} checklists` : ''}
-      </div>
-    );
-  }, [contextData, selectedSKU, selectedLotNumber, selectedDate]);
+// Current context summary for display
+const contextSummary = React.useMemo(() => {
+  if (!contextData) return null;
+  
+  const tableCount = Object.keys(contextData.tables).length;
+  const checklistCount = contextData.checklists.length;
+  const fileCount = uploadedFiles.filter(f => f.isProcessed).length;
+  const s3FileCount = fileContextCount;
+  
+  if (tableCount === 0 && checklistCount === 0 && fileCount === 0 && s3FileCount === 0) return null;
+  
+  const contextFilters = [];
+  if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
+  if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
+  if (selectedDate) contextFilters.push(`Date: ${selectedDate}`);
+  
+  const filterText = contextFilters.length > 0 
+    ? `Filters: ${contextFilters.join(', ')} | ` 
+    : '';
+  
+  let dataSources = [];
+  if (tableCount > 0) dataSources.push(`${tableCount} tables`);
+  if (checklistCount > 0) dataSources.push(`${checklistCount} checklists`);
+  if (fileCount > 0) dataSources.push(`${fileCount} uploaded files`);
+  if (s3FileCount > 0) dataSources.push(`${s3FileCount} attached files`);
+  
+  return (
+    <div className="text-xs text-gray-500 mt-1">
+      {filterText}Using: {dataSources.join(', ')}
+    </div>
+  );
+}, [contextData, selectedSKU, selectedLotNumber, selectedDate, uploadedFiles, fileContextCount]);
 
   if (!isOpen) return null;
 
@@ -638,9 +844,80 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* File Upload Area */}
+      {showFileUploadArea && (
+        <div className="px-4 pt-2 border-t border-gray-200">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-sm font-medium">Uploaded Files</h3>
+            <button 
+              onClick={() => setShowFileUploadArea(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <IoMdClose className="w-4 h-4" />
+            </button>
+          </div>
+          
+          {uploadedFiles.length > 0 ? (
+            <div className="max-h-28 overflow-y-auto mb-2">
+              {uploadedFiles.map((file, index) => (
+                <div key={index} className="flex items-center justify-between p-1 bg-gray-50 rounded mb-1">
+                  <div className="flex items-center">
+                    <IoDocument className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-xs font-medium truncate max-w-40">{file.file.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {file.isProcessing 
+                          ? 'Processing...' 
+                          : file.isProcessed 
+                            ? 'Ready' 
+                            : file.error || 'Error'}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => removeFile(index)}
+                    className="text-gray-500 hover:text-red-500"
+                  >
+                    <IoMdClose className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-2 text-sm text-gray-500">
+              No files uploaded
+            </div>
+          )}
+          
+          <div className="flex justify-center mb-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              multiple
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-blue-500 hover:text-blue-700 text-sm font-medium"
+            >
+              Upload Files
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4">
-        <div className="flex space-x-4">
+        <div className="flex space-x-2 items-center">
+          <button
+            type="button"
+            onClick={() => setShowFileUploadArea(!showFileUploadArea)}
+            className="text-gray-500 hover:text-blue-500"
+          >
+            <IoAttach className="w-5 h-5" />
+          </button>
+          
           <input
             type="text"
             value={input}
@@ -649,9 +926,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={isLoading}
           />
+          
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Send
