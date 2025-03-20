@@ -188,7 +188,7 @@ class TableService:
             table_data = []
             for t in c.table_data:
                 value = None
-                if data_type == "text" or data_type == "long-text":
+                if data_type in ["text", "long-text"]:
                     value = t.value_text
                 elif data_type == "number":
                     value = t.value_num
@@ -347,7 +347,7 @@ class TableService:
             Created Table instance
         """
         table = Table(
-            name=data['name'],
+            name=data['name'].strip(),
             created_by=creator_id
         )
 
@@ -360,7 +360,7 @@ class TableService:
         # Add tabs
         for i, tab_data in enumerate(data.get('tabs', [])):
             tab = TableTab(
-                name=tab_data['name'],
+                name=tab_data['name'].strip(),
                 table_id=table.id,
                 tab_index=i,
             )
@@ -369,7 +369,7 @@ class TableService:
             # Add columns
             for col_data in tab_data.get('columns', []):
                 column = TableColumn(
-                    name=col_data['name'],
+                    name=col_data['name'].strip(),
                     tab_id=tab.id,
                     data_type=col_data['data_type'],
                 )
@@ -403,7 +403,7 @@ class TableService:
 
         # Add tabs
         tab = TableTab(
-            name=data['name'],
+            name=data['name'].strip(),
             table_id=table_id,
             tab_index=tab_index,
         )
@@ -411,7 +411,7 @@ class TableService:
         # Add columns
         for col_data in data.get('columns', []):
             column = TableColumn(
-                name=col_data['name'],
+                name=col_data['name'].strip(),
                 tab_id=tab.id,
                 data_type=col_data['data_type'],
             )
@@ -436,14 +436,14 @@ class TableService:
         column = TableColumn.query.get(column_id)
         if column:
             if "name" in updates:
-                column.name = updates["name"]
+                column.name = updates["name"].strip()
 
             if "data_type" in updates:
                 column.data_type = updates["data_type"]
 
         else:
             column = TableColumn(
-                name=updates.get("name"),
+                name=updates.get("name").strip(),
                 data_type=updates.get("data_type"),
                 tab_id=updates.get("tab_id"),
             )
@@ -468,7 +468,7 @@ class TableService:
         if not tab:
             return False
 
-        tab.name = name
+        tab.name = name.strip()
         db.session.commit()
         return tab
 
@@ -488,7 +488,7 @@ class TableService:
         if not table:
             return False
 
-        table.name = name
+        table.name = name.strip()
         db.session.commit()
         return table
 
@@ -551,7 +551,7 @@ class TableService:
                 value_lotnum,
                 value_user_id,
             ) = None, None, None, None, None, None, None, None
-            if data_type == 'text' or data_type == 'long-text':
+            if data_type in ['text', 'long-text']:
                 value_text = update['value']
             elif data_type == 'number':
                 value_num = update['value']

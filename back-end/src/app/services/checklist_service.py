@@ -29,7 +29,9 @@ class ChecklistService:
             Boolean indicated whether user has right to access item_id
         """
         item = ChecklistItem.query.get(item_id)
-        return ChecklistService.validate_user_for_checklist(user_id, item.checklist_id)
+        if item:
+            return ChecklistService.validate_user_for_checklist(user_id, item.checklist_id)
+        return False
 
 
     @staticmethod
@@ -45,7 +47,9 @@ class ChecklistService:
             Boolean indicated whether user has right to access template_id
         """
         field = ChecklistField.query.get(field_id)
-        return ChecklistService.validate_user_for_template(user_id, field.template_id)
+        if field:
+            return ChecklistService.validate_user_for_template(user_id, field.template_id)
+        return False
 
 
     @staticmethod
@@ -61,7 +65,9 @@ class ChecklistService:
             Boolean indicated whether user has right to access template_id
         """
         checklist = Checklist.query.get(checklist_id)
-        return ChecklistService.validate_user_for_template(user_id, checklist.template.id)
+        if checklist:
+            return ChecklistService.validate_user_for_template(user_id, checklist.template.id)
+        return False
 
     @staticmethod
     def validate_user_for_template(user_id: int, template_id: int) -> bool:
@@ -137,7 +143,10 @@ class ChecklistService:
 
         try:
             if len(template.checklists) > 0:
-                template.archived = True
+                if template.archived:
+                    template.archived = False
+                else:
+                    template.archived = True
                 db.session.add(template)
             else:
                 for field in template.fields:
@@ -262,13 +271,11 @@ class ChecklistService:
         results = []
         for assignment in assignments:
             template = assignment.template
-            if template.archived:
-                continue
             results.append({
                 "id": template.id,
+                "archived": template.archived,
                 "title": template.title,
                 "description": template.description,
-                "archived": template.archived,
                 "created_by": template.created_by,
                 "created_at": template.created_at.isoformat()
             })
@@ -355,14 +362,31 @@ class ChecklistService:
         results = []
         for assignment in assignments:
             template = assignment.template
-            if template.archived:
-                continue
             num_tasks = len(template.fields)
             checklists = template.checklists
             for checklist in checklists:
-                num_completed = sum(item.completed_at is not None for item in checklist.items)
+                num_completed = 0
+                for item in checklist.items:
+                    field = ChecklistField.query.get(item.field_id)
+                    data_type = field.data_type
+                    value = None
+                    if data_type == "text":
+                        value = item.value_text
+                    elif data_type == "number":
+                        value = item.value_num
+                    elif data_type == "boolean":
+                        value = item.value_bool
+                    elif data_type == "sku":
+                        value = item.value_sku
+                    elif data_type == "lot-number":
+                        value = item.value_lotnum
+
+                    if value is not None and value != "":
+                        num_completed += 1
+
                 results.append({
                     "id": checklist.id,
+                    "archived": template.archived,
                     "template_id": template.id,
                     "template_name": template.title,
                     "created_by": checklist.created_by,

@@ -34,12 +34,14 @@ def create_app():
     CORS(flask_app)  # Enable Cross-Origin Resource Sharing
 
     # Import and register blueprints for modular routing
-    from app.routes import auth, checklists, tables, users
+    from app.routes import auth, checklists, tables, users, files
 
     # Each blueprint has its own URL prefix for API organization
     flask_app.register_blueprint(auth.auth_bp, url_prefix='/api/auth')
     flask_app.register_blueprint(checklists.checklist_bp, url_prefix='/api/checklists')
     flask_app.register_blueprint(users.user_bp, url_prefix='/api/users')
     flask_app.register_blueprint(tables.table_bp, url_prefix='/api/tables')
+    flask_app.register_blueprint(files.file_bp, url_prefix='/api/files')
+
 
     return flask_app
