@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import logo from '../assets/images/B-logo.png';
+// import logo from '../assets/images/B-logo.png';
+import logo from '../assets/images/pickmeup.png';
 import { useUsers } from '../hooks/useUsers';
 import { useSidebarState } from '../hooks/useSidebarState';
 import { useChatState } from '../hooks/useChatState';
 import ChatWindow from '../components/Chat/ChatWindow'; 
-import { FaRobot } from 'react-icons/fa';
+import { RiChatVoiceAiLine } from "react-icons/ri";
 
 export const Sidebar = ({ orgName="" }) => {
     // Use global sidebar state for visibility management
@@ -52,7 +53,7 @@ export const Sidebar = ({ orgName="" }) => {
                             className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-0 me-2"
                         >
                             <span className="sr-only">Open AI chat</span>
-                            <FaRobot className="w-6 h-6" />
+                            <RiChatVoiceAiLine className="w-6 h-6" />
                         </button>
                         <button onClick={toggle} aria-controls="logo-sidebar" type="button" className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-0">
                             <span className="sr-only">Open sidebar</span>
@@ -65,7 +66,8 @@ export const Sidebar = ({ orgName="" }) => {
             </div>
         </nav>
 
-        <aside id="logo-sidebar" className={`${isVisible ? "translate-x-0" : "-translate-x-full"} fixed top-0 left-0 z-40 w-64 h-screen pt-20 transition-transform bg-white border-r border-gray-200`} aria-label="Sidebar">
+        <aside className={`${isVisible ? "translate-x-0" : "-translate-x-full"} fixed top-0 left-0 z-40
+                            w-full sm:w-64 h-screen pt-20 transition-transform bg-white border-r border-gray-200`}>
             <div className="h-full px-3 pb-4 overflow-y-auto bg-white">
                 <ul className="space-y-2 font-medium">
                     <li>
@@ -108,7 +110,7 @@ export const Sidebar = ({ orgName="" }) => {
                             </svg>
                         </button>
                         <ul id="admin-dropdown" className={`${(adminDropdownVisible ? "visible" : "hidden")} py-2 space-y-2`}>
-                            {currentUser?.is_admin_role &&
+                            {currentUser?.is_super_admin_role &&
                                 <li>
                                     <NavLink
                                         to="/admin/users"

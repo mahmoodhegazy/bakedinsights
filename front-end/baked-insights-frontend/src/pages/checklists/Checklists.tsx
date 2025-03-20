@@ -16,6 +16,8 @@ export const Checklists = () => {
     const [filteredChecklistDate, setFilteredChecklistDate] = useState<string>("");
 
     const { currentUser } = useUsers();
+    const [showArchivedTemplates, setShowArchivedTemplates] = useState<boolean>(false);
+    const [showArchivedChecklists, setShowArchivedChecklists] = useState<boolean>(false);
 
     const { 
         // Queries
@@ -33,6 +35,27 @@ export const Checklists = () => {
         createChecklistTemplate,
     } = useChecklistTemplates();
 
+
+    // For displaying archived templates
+    let activeTemplates = null;
+    if (checklistTemplates?.length) {
+        activeTemplates = checklistTemplates?.filter((template) => !template.archived);
+    }
+
+    // For displaying archived checklists
+    let activeChecklists = null;
+    if (checklists?.length) {
+        activeChecklists = checklists?.filter((checklist) => !checklist.archived);
+    }
+
+    // For the Templates display
+    const displayTemplates = showArchivedTemplates ? checklistTemplates : activeTemplates;
+
+    // For the checklists display
+    const displayChecklists = showArchivedChecklists ? checklists : activeChecklists;
+    const displayChecklistTemplates = showArchivedChecklists ? checklistTemplates : activeTemplates;
+
+
     const newChecklistTemplate = () => {
         createChecklistTemplate({
             title: "New Template",
@@ -49,8 +72,8 @@ export const Checklists = () => {
     };
 
     const newChecklist = () => {
-        if (checklistTemplates && selectedTemplateIndex > 0) {
-            createChecklist(checklistTemplates[selectedTemplateIndex-1].id);  // Index 0 is "no selection"
+        if (activeTemplates && selectedTemplateIndex > 0) {
+            createChecklist(activeTemplates[selectedTemplateIndex-1].id);  // Index 0 is "no selection"
         }
     };
 
@@ -66,7 +89,7 @@ export const Checklists = () => {
         }
 
         // Show empty state
-        if (!checklistTemplates?.length) {
+        if (!displayTemplates?.length) {
             return (
                 <div className="max-w-4xl mx-auto py-8 px-4">
                     <div className="text-center py-12">
@@ -81,25 +104,33 @@ export const Checklists = () => {
             );
         }
 
-        return (
+       return (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 overflow-auto py-4 border-t border-gray-200">
-                {checklistTemplates.sort((a, b) => b.id - a.id).map((template) => (
+                {displayTemplates.sort((a, b) => b.id - a.id).map((template) => (
                     <button
                         key={template.id}
                         className="text-left"
                     >
                         <div
-                            className="bg-white drop-shadow-md p-4 rounded-md hover:drop-shadow-lg"
+                            className="bg-white drop-shadow-md rounded-md hover:drop-shadow-lg border border-gray-200"
                             onClick={() => {openChecklistTemplate(template.id)}}
                         >
-                            <h4 className="mb-1 uppercase text-xs font-bold text-slate-400">Template</h4>
-                            <h3 className="text-gray-900 font-medium flex flex-row">
-                                {template.title}
-                                <IoIosArrowForward className="ml-auto text-md" />
-                            </h3>
-                            <div className="p-2 text-gray-500 text-xs">
-                                <p>Created by <span className="font-bold">{template.created_by_username}</span></p>
-                                <p>Created at <span className="font-bold">{new Date(template.created_at.concat("Z")).toLocaleDateString()}</span></p>
+                            <div className={`${template.archived ? "bg-red-700" : "bg-slate-700"} w-full rounded-t-md px-4 py-1 text-xs`}>
+                                    {template.archived
+                                        ? <p className="font-bold text-white uppercase">Archived</p>
+                                        : <p className="font-bold text-white uppercase">Active</p>
+                                    }
+                            </div>
+                            <div className="p-4">
+                                <h4 className="mb-1 uppercase text-xs font-bold text-slate-400">Template</h4>
+                                <h3 className="text-gray-900 font-medium flex flex-row">
+                                    {template.title}
+                                    <IoIosArrowForward className="ml-auto text-md" />
+                                </h3>
+                                <div className="p-2 text-gray-500 text-xs">
+                                    <p>Created by <span className="font-bold">{template.created_by_username}</span></p>
+                                    <p>Created at <span className="font-bold">{new Date(template.created_at.concat("Z")).toLocaleDateString()}</span></p>
+                                </div>
                             </div>
                         </div>
                     </button>
@@ -121,26 +152,26 @@ export const Checklists = () => {
         }
 
         // Show empty state
-        if (!checklists?.length) {
+        if (!displayChecklists?.length || !displayChecklistTemplates?.length) {
             return (
             <div className="max-w-4xl mx-auto py-8 px-4">
                 <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-gray-900">
-                    No Checklists Assigned
+                    No Checklists
                 </h3>
                 <p className="mt-2 text-sm text-gray-500">
-                    You currently have no checklists assigned to you.
+                    You currently have no checklists.
                 </p>
                 </div>
             </div>
             );
         }
 
-        let filteredChecklists = checklists;
-        if (checklistTemplates && filteredTemplateIndex > 0) {
-            filteredChecklists = filteredChecklists.filter((checklist) => checklist.template_id === checklistTemplates[filteredTemplateIndex-1].id);
+        let filteredChecklists = displayChecklists;
+        if (filteredTemplateIndex > 0) {
+            filteredChecklists = filteredChecklists.filter((checklist) => checklist.template_id === displayChecklistTemplates[filteredTemplateIndex-1].id);
         }
-        if (checklistTemplates && filteredChecklistDate) {
+        if (filteredChecklistDate) {
             filteredChecklists = filteredChecklists.filter((checklist) => 
                 new Date(new Date(checklist.created_at.concat("Z")).toLocaleDateString()).toISOString().slice(0, 10) === filteredChecklistDate);
         }
@@ -160,30 +191,38 @@ export const Checklists = () => {
         }
 
         return (
-            <div className="grid gap-6 md:grid-cols-2 overflow-auto py-4 border-t border-gray-200">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 overflow-auto py-4 border-t border-gray-200">
                 {filteredChecklists.sort((a, b) => b.id - a.id).map((checklist) => (
                     <button
                         key={checklist.id}
                         className="text-left"
                     >
                         <div
-                            className="bg-white drop-shadow-md p-4 rounded-md hover:drop-shadow-lg"
+                            className="bg-white drop-shadow-md rounded-md hover:drop-shadow-lg border border-gray-200"
                             onClick={() => {openChecklist(checklist.template_id, checklist.id)}}
                         >
-                            <h4 className="text-gray-900 font-medium">
-                                <div className="flex flex-row">
-                                    {checklist.template_name}
-                                    <IoIosArrowForward className="ml-auto text-md" />
+                            <div className={`${checklist.archived ? "bg-red-700" : "bg-slate-700"} w-full rounded-t-md px-4 py-1 text-xs`}>
+                                    {checklist.archived
+                                        ? <p className="font-bold text-white uppercase">Archived</p>
+                                        : <p className="font-bold text-white uppercase">Active</p>
+                                    }
+                            </div>
+                            <div className="p-4">
+                                <h4 className="text-gray-900 font-medium">
+                                    <div className="flex flex-row">
+                                        {checklist.template_name}
+                                        <IoIosArrowForward className="ml-auto text-md" />
+                                    </div>
+                                </h4>
+                                <div className="p-2 text-gray-500 text-xs">
+                                    {checklist.submitted
+                                        ? <p className="font-bold text-teal-500">Submitted</p>
+                                        : <p className="font-bold text-amber-500">Not Submitted</p>
+                                    }
+                                    <p>Progress <span className={`${checklist.num_completed === checklist.num_tasks ? "text-teal-500" : "text-amber-500"} font-bold`}>{checklist.num_completed}/{checklist.num_tasks}</span></p>
+                                    <p>Created by <span className="font-bold">{checklist.created_by_username}</span></p>
+                                    <p>Created at <span className="font-bold">{new Date(checklist.created_at.concat("Z")).toLocaleString()}</span></p>
                                 </div>
-                            </h4>
-                            <div className="p-2 text-gray-500 text-xs">
-                                {checklist.submitted
-                                    ? <p className="font-bold text-teal-500">Submitted</p>
-                                    : <p className="font-bold text-amber-500">Not Submitted</p>
-                                }
-                                <p>Progress <span className={`${checklist.num_completed === checklist.num_tasks ? "text-teal-500" : "text-amber-500"} font-bold`}>{checklist.num_completed}/{checklist.num_tasks}</span></p>
-                                <p>Created by <span className="font-bold">{checklist.created_by_username}</span></p>
-                                <p>Created at <span className="font-bold">{new Date(checklist.created_at.concat("Z")).toLocaleString()}</span></p>
                             </div>
                         </div>
                     </button>
@@ -206,10 +245,11 @@ export const Checklists = () => {
         <>
         {currentUser?.is_admin_role && 
             <>
+            <div className="hidden md:block">
             <div className="mb-4 font-bold text-slate-500 flex-col">
                 <h1>My Templates</h1>
             </div>
-            <div className="flex items-center justify-between flex-wrap flex-row space-y-0 pb-4">
+            <div className="flex items-start justify-between flex-wrap flex-row pb-4 gap-2">
                 <button
                     className={`text-gray-500 bg-white border-gray-300 inline-flex items-center border hover:bg-gray-100 font-medium rounded-lg text-sm px-3 py-1.5`}
                     onClick={newChecklistTemplate}
@@ -217,6 +257,15 @@ export const Checklists = () => {
                     <span className="sr-only">Add template button</span>
                     + New Template
                 </button>
+                <div className="flex flex-row text-sm rounded-md ml-auto border border-gray-300 p-2 my-0">
+                    <input
+                        className="outline-none"
+                        type="checkbox"
+                        checked={showArchivedTemplates}
+                        onChange={(e: any) => {setShowArchivedTemplates(e.target.checked)}}
+                    />
+                    <span className="pl-2 font-medium text-gray-500">Show archived</span>
+                </div>
                 <label htmlFor="template-search" className="sr-only">Search</label>
                 <div className="relative">
                     <div className="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -233,13 +282,14 @@ export const Checklists = () => {
                 className="mb-5 border-b border-gray-200 overflow-auto">
                 {getChecklistTemplateBody()}
             </Resizable>
+            </div>
             </>
         }
 
         <div className="mb-4 font-bold text-slate-500 ">
             <h1>My Checklists</h1>
         </div>
-        <div className="flex items-start justify-between flex-wrap flex-row space-y-0 pb-4">
+        <div className="flex items-start justify-between flex-wrap flex-row pb-4 gap-2">
             <Popup
                 trigger={newChecklistButton}
                 on={['click']}
@@ -247,17 +297,16 @@ export const Checklists = () => {
                 arrow={true}
                 closeOnDocumentClick
             >
-                <div className="bg-white p-4 drop-shadow-lg rounded-lg flex flex-col w-96">
-                    <div className="mb-4">
-                        <label className="block text-gray-400 text-xs font-bold mb-2">Template</label>
-                        <span className="flex flex-row">
+                <div className="bg-white p-4 drop-shadow-lg rounded-lg flex flex-col w-full sm:w-96 mb-4">
+                    <label className="block text-gray-400 text-xs font-bold mb-2">Template</label>
+                    <span className="flex flex-row">
                         <select
                             className={`${true ? "hover:border-sky-300 text-gray-700" : "text-gray-700"} bg-white w-full h-7 px-1 text-sm border rounded-md border-gray-300 outline-none`}
                             value={selectedTemplateIndex}
                             onChange={(e: any) => setSelectedTemplateIndex(e.target.value)}
                         >
-                            {checklistTemplates?.length 
-                                && ["", ...checklistTemplates].map((v: any, index: number) => (<option key={index} value={index}>{v.title}</option>))
+                            {activeTemplates?.length 
+                                && ["", ...activeTemplates].map((v: any, index: number) => (<option key={index} value={index}>{v.title}</option>))
                             }
                         </select>
                         <Tooltip id="tableheader-save-tooltip" />
@@ -270,28 +319,37 @@ export const Checklists = () => {
                             type="button"
                             onClick={newChecklist}
                             className={`${selectedTemplateIndex <= 0 ? "text-gray-300" : "text-sky-500 hover:text-sky-700"} text-sm outline-none px-2 ml-2`}>
-                            <FaCheck />
+                            <div className="flex flex-row items-center">
+                                <p className="text-sm font-bold mr-1">Done</p> <FaCheck />
+                            </div>
                         </button>
-                        </span>
-                    </div>
+                    </span>
                 </div>
             </Popup>
-
-            <div className="flex flex-col ml-auto mr-2">
+            <div className="flex flex-row text-sm rounded-md border border-gray-300 p-2 ml-auto">
+                <input
+                    className="outline-none"
+                    type="checkbox"
+                    checked={showArchivedChecklists}
+                    onChange={(e: any) => {setShowArchivedChecklists(e.target.checked)}}
+                />
+                <span className="pl-2 font-medium text-gray-500">Show archived</span>
+            </div>
+            <div className="flex flex-col w-full ml-auto sm:ml-0 sm:w-1/5">
                 <select
-                    className={`${true ? "hover:border-sky-300 text-gray-700" : "text-gray-700"} bg-white min-w-52 h-8 px-1 text-sm border rounded-md border-gray-300 outline-none`}
+                    className={`${true ? "hover:border-sky-300 text-gray-700" : "text-gray-700"} bg-white h-8 px-1 text-sm border rounded-md border-gray-300 outline-none`}
                     value={filteredTemplateIndex}
                     onChange={(e: any) => setFilteredTemplateIndex(e.target.value)}
                 >
-                    {checklistTemplates?.length 
-                        && ["", ...checklistTemplates].map((v: any, index: number) => (<option key={index} value={index}>{v.title}</option>))
+                    {displayChecklistTemplates?.length 
+                        && ["", ...displayChecklistTemplates].map((v: any, index: number) => (<option key={index} value={index}>{v.title}</option>))
                     }
                 </select>
                 <label className="px-1 text-xs font-medium text-slate-400 mb-1">Filter by template</label>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col w-full ml-auto sm:ml-0 sm:w-1/5">
                 <input
-                    className={`${true ? "hover:border-sky-300 text-gray-700" : "text-gray-700"} bg-white min-w-52 h-8 px-1 text-sm border rounded-md border-gray-300 outline-none`}
+                    className={`${true ? "hover:border-sky-300 text-gray-700" : "text-gray-700"} bg-white h-8 px-1 text-sm border rounded-md border-gray-300 outline-none`}
                     type="date"
                     value={filteredChecklistDate}
                     onInput={(e: any) => setFilteredChecklistDate(e.target.value)}

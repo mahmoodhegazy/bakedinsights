@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth';
+import { toast } from 'react-toastify';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:5050/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://44.203.3.63:5050/api',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -22,7 +23,9 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             useAuth.getState().logout();
         }
-        console.log(error);
+        toast.error(error.response?.data.message, {
+            position: 'top-right',
+        });
         return Promise.reject(error);
     }
 );

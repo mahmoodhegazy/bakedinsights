@@ -21,6 +21,7 @@ export interface APIChecklistField {
 
 export interface APIChecklist{
     id: number,
+    archived: boolean,
     template_id: number,
     template_name: string,
     created_by_username: string,
@@ -35,7 +36,7 @@ export interface APIChecklistItem {
     field_id: number,
     order: number,
     value: any,
-    value_fpath: string,
+    value_fpath: HTMLInputElement | string,
     comment: string,
     completed_at: string,
     submitted: boolean,

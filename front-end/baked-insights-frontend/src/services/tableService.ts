@@ -1,6 +1,6 @@
 import api from '../api/axios';
 import { User, APITableColumnUpdates, APITableDataUpdates, APITableShare, APITable, _APITableDataUpdates } from '../types/index';
-
+import { useDataRefreshStore } from '../hooks/useDataRefreshStore';
 
 export class TableService {
 
@@ -34,6 +34,8 @@ export class TableService {
     static async updateTable(id: number, name: string) {
         try {
             const response = await api.put(`/tables/${id}`, {name: name});
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
             return response.data;
         } catch (e:any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -43,6 +45,8 @@ export class TableService {
     static async deleteTableTab(id: number) {
         try {
             await api.delete(`/tables/tabs/${id}`);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));
         }
@@ -51,6 +55,8 @@ export class TableService {
     static async deleteTableColumn(id: number) {
         try {
             await api.delete(`/tables/columns/${id}`);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));
         }
@@ -59,6 +65,8 @@ export class TableService {
     static async updateTableColumn(updateData: APITableColumnUpdates) { 
         try {
             const response = await api.put(`/tables/columns`, updateData);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
             return response.data;
         } catch (e:any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -93,6 +101,29 @@ export class TableService {
                     'Content-Type': 'multipart/formdata',
                 }
             });
+            
+            // Check if update contains SKU or Lot Number
+            const containsSKU = updates.updates.some(update => {
+                // TODO: How do we check if this is a SKU update?
+                return update.column_id && typeof update.value === 'string' && update.value.trim() !== '';
+            });
+            
+            const containsLotNumber = updates.updates.some(update => {
+                // Similarly, how do we check if this is a lot number update?
+                return update.column_id && typeof update.value === 'string' && update.value.trim() !== '';
+            });
+            
+            // Trigger appropriate refresh events
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
+            
+            if (containsSKU) {
+                useDataRefreshStore.getState().triggerRefresh('sku-created');
+            }
+            
+            if (containsLotNumber) {
+                useDataRefreshStore.getState().triggerRefresh('lot-number-created');
+            }
+            
             return response.data;
         } catch (e:any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -102,6 +133,8 @@ export class TableService {
     static async deleteTableData(record_id: number) { 
         try {
             const response = await api.delete(`/tables/records/${record_id}`);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
             return response.data;
         } catch (e:any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -111,6 +144,8 @@ export class TableService {
     static async updateTableTab(tab_id: number, name: string) { 
         try {
             const response = await api.put(`/tables/tabs/${tab_id}`, name);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
             return response.data;
         } catch (e:any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -129,6 +164,8 @@ export class TableService {
         }
         try {
             const response = await api.post(`/tables/${table_id}/tabs`, apiData);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
             return response.data;
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -149,6 +186,8 @@ export class TableService {
         }
         try {
             const response = await api.post('/tables/', apiData);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-created');
             return response.data;
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));
@@ -158,6 +197,8 @@ export class TableService {
     static async deleteTable(id: number) {
         try {
             await api.delete(`/tables/${id}`);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-data-updated');
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));
         }
@@ -186,4 +227,3 @@ export class TableService {
         }
     }
 };
-

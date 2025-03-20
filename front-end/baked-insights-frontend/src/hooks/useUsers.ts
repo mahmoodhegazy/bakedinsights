@@ -30,10 +30,7 @@ export const useUsers = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allUsersData'] });
             toast.success("Succesfully created user.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
+        }
     });
 
     const updateUserMutation = useMutation({
@@ -42,10 +39,7 @@ export const useUsers = () => {
             queryClient.invalidateQueries({ queryKey: ['allUsersData'] });
             queryClient.invalidateQueries({ queryKey: ['currentUserData'] });
             toast.success("Succesfully updated user.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
+        }
     });
 
     const deleteUserMutation = useMutation({
@@ -53,10 +47,7 @@ export const useUsers = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['allUsersData'] });
             toast.success("Succesfully delete user.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
+        }
     });
 
     // Return all the necessary data and functions for components to use

@@ -32,6 +32,7 @@ export const TableTab: React.FC<TableTabProps> = ({
     }
     const [fieldName, setFieldName] = useState<string>("");
     const [edited, setEdited] = useState<boolean>(false);
+    const [confirmDeleteInput, setConfirmDeleteInput] = useState<string>("");
 
     useEffect(() => {
         if (!isControlTab) {
@@ -69,12 +70,26 @@ export const TableTab: React.FC<TableTabProps> = ({
         </div>
     );
 
+    const deleteButton = (
+        <button
+            {...(true && {
+                    "data-tooltip-id": "tableheader-delete-tooltip",
+                    "data-tooltip-content": "Delete Tab",
+                    "data-tooltip-place": "bottom",
+                })}
+            type="button"
+            className={`text-sm text-gray-500 hover:text-pink-700 outline-none px-2`}>
+            <FaTrash />
+        </button>
+    );
+
     return (
         <Popup
             trigger={tableTab}
             position="top left"
             on={['right-click']}
             arrow={true}
+            nested
             closeOnDocumentClick
             closeOnEscape
         >
@@ -120,17 +135,35 @@ export const TableTab: React.FC<TableTabProps> = ({
                     </>
                     <>
                     <Tooltip id="tableheader-delete-tooltip" />
-                    <button
-                        {...(true && {
-                                "data-tooltip-id": "tableheader-delete-tooltip",
-                                "data-tooltip-content": "Delete Tab",
-                                "data-tooltip-place": "bottom",
-                            })}
-                        type="button"
-                        onClick={onDeleteHandler}
-                        className={`text-sm text-gray-500 hover:text-pink-700 outline-none px-2`}>
-                        <FaTrash />
-                    </button>
+                    <Popup
+                        trigger={deleteButton}
+                        position="top center"
+                        on={["click"]}
+                        arrow={true}
+                        nested
+                    >
+                        <div className="bg-white shadow-lg w-64 rounded-lg text-sm border border-gray-200">
+                            <div className="p-4">
+                                <h4 className="font-medium text-slate-500">To confirm deletion, type the name of this tab in the field.</h4>
+                                <input 
+                                    type="text"
+                                    placeholder={fieldName}
+                                    value={confirmDeleteInput}
+                                    onInput={(e: any) => {setConfirmDeleteInput(e.target.value)}}
+                                    className="bg-white text-wrap w-full h-7 px-2 text-sm rounded-md border border-gray-300 my-1
+                                            focus:border-sky-300 hover:border-sky-300 outline-none italic"
+                                />
+                                <button
+                                    disabled={confirmDeleteInput != fieldName}
+                                    className={`${confirmDeleteInput == fieldName ? "bg-red-700 hover:bg-red-900 text-white" : "bg-gray-200 text-gray-300"} button rounded-md text-center p-2 w-full font-bold`}
+                                    onClick={onDeleteHandler}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </Popup>
+
                     </>
                 </div>
 

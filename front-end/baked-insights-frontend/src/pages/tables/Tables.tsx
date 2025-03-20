@@ -53,7 +53,7 @@ export const Tables = () => {
                         className="text-left"
                     >
                         <div
-                            className="bg-white drop-shadow-md p-4 rounded-md hover:drop-shadow-lg"
+                            className="bg-white drop-shadow-md p-4 rounded-md hover:drop-shadow-lg border border-gray-200"
                             onClick={() => {openTable(table.id)}}
                         >
                             <h3 className="text-gray-900 font-medium">
@@ -78,7 +78,7 @@ export const Tables = () => {
         <div className="mb-4 font-bold text-slate-500 flex-col">
             <h1>My Tables</h1>
         </div>
-        <div className="flex items-center justify-between flex-wrap flex-row space-y-0 pb-4">
+        <div className="flex items-center justify-between flex-wrap flex-row gap-2 pb-4">
             <button
                 className={`text-gray-500 bg-white border-gray-300 inline-flex items-center border hover:bg-gray-100 font-medium rounded-lg text-sm px-3 py-1.5`}
                 onClick={newTable}

@@ -21,9 +21,6 @@ export const useTableShares = (table_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`tableShares-${table_id}`] });
             toast.success("Succesfully updated table shares.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
    // Return all the necessary data and functions for components to use
@@ -55,10 +52,7 @@ export const useTableDetails = (table_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully created tab.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
+        }
     });
 
     const updateTableTabMutation = useMutation({
@@ -66,9 +60,6 @@ export const useTableDetails = (table_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated tab.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -78,9 +69,6 @@ export const useTableDetails = (table_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated table.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteTableTabMutation = useMutation({
@@ -88,9 +76,6 @@ export const useTableDetails = (table_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated table.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -100,9 +85,6 @@ export const useTableDetails = (table_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated table.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteTableDataMutation = useMutation({
@@ -110,9 +92,6 @@ export const useTableDetails = (table_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated table.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -122,9 +101,6 @@ export const useTableDetails = (table_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully updated table.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteTableColumnMutation = useMutation({
@@ -132,9 +108,6 @@ export const useTableDetails = (table_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`tableDetailsData-${table_id}`] });
             toast.success("Succesfully deleted field.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -177,9 +150,6 @@ export const useTablesManager = () => {
             queryClient.invalidateQueries({ queryKey: ['assignedTablesData'] });
             toast.success("Succesfully created table.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteTableMutation = useMutation({
@@ -187,9 +157,6 @@ export const useTablesManager = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['assignedTablesData'] });
             toast.success("Succesfully deleted table.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 

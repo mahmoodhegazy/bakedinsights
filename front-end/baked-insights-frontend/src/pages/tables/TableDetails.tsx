@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table } from '../../components/Table/Table';
+import Popup from 'reactjs-popup';
 import { ShareTable } from '../../components/Table/ShareTable';
 import { TableTab } from '../../components/Table/TableTab';
 import { useTableDetails, useTablesManager, useTableSelectData } from '../../hooks/useTables';
@@ -21,6 +22,7 @@ export const TableDetails: React.FC = () => {
 
     // Table data state management
     const [title, setTitle] = useState<string>("");
+    const [confirmDeleteInput, setConfirmDeleteInput] = useState<string>("");
     const [data, setData] = useState<TableTabData[]>([]);
     const [tabDataCSV, setTabDataCSV] = useState<any[][]>([[]]);
 
@@ -72,7 +74,7 @@ export const TableDetails: React.FC = () => {
         }
     };
     // --
-    const deleteTableButton = () => {
+    const deleteTableHandler = () => {
         const table_id: number = id ? +id: -1;
         deleteTable(table_id);
         navigate("/tables");
@@ -220,43 +222,75 @@ export const TableDetails: React.FC = () => {
         );
     }
 
+    const deleteTableButton= (
+            <button
+                className="items-center flex flex-row border font-medium text-sm px-3 py-1.5 rounded-lg ml-auto sm:ml-0
+                           text-gray-500 border-gray-300 bg-white hover:border-red-500 hover:text-red-500 hover:bg-red-100"
+            >
+                <span className="text-sm"><FaTrash /></span> &nbsp; Delete Table
+            </button>
+    );
+
     return (
     <>
         {/* Table Control */}
-        <div className="flex items-center flex-wrap flex-row space-y-0 pb-4">
+        <div className="flex items-center flex-wrap flex-row pb-4 gap-2">
             <button
                 className="mr-auto items-center flex flex-row font-bold text-sm py-1.5 rounded-lg text-gray-500 bg-white hover:text-gray-700"
                 onClick={() => {navigate("/tables")}}
             >
                 <IoIosArrowBack /> Back
             </button>
-            <input
-                className="text-center outline-none font-bold rounded-lg border border-white hover:border-sky-300 focus:border-sky-300 text-slate-500 p-1"
-                type="text"
-                value={title}
-                placeholder="Untitled"
-                onInput={(e: any) => {setTitle(e.target.value)}}
-                onBlur={() => {updateTitle()}}
-            />
-
             <CSVLink
-                className="items-center ml-auto mr-4 flex flex-row border font-medium text-sm px-3 py-1.5 rounded-lg text-gray-500 border-gray-300 bg-white hover:text-gray-500 hover:bg-gray-100"
+                className="items-center ml-auto flex flex-row border font-medium text-sm px-3 py-1.5 rounded-lg text-gray-500 border-gray-300 bg-white hover:text-gray-500 hover:bg-gray-100"
                 filename={`${title}-${data[activeTabIndex].tabName}.csv`}
                 data={tabDataCSV}
                 onClick={prepTabDataCSV}
             >
                     <span className="text-sm"><FaDownload /></span> &nbsp; Download
             </CSVLink>
-            <ShareTable
-                tableID={+id}/>
-            <button
-                className="items-center ml-4 flex flex-row border font-medium text-sm px-3 py-1.5 rounded-lg text-gray-500 border-gray-300 bg-white hover:border-red-500 hover:text-red-500 hover:bg-red-100"
-                onClick={() => {deleteTableButton()}}
+            <div className="ml-auto sm:ml-0"><ShareTable tableID={+id}/></div>
+            <Popup
+                trigger={deleteTableButton}
+                position="bottom right"
+                on={["click"]}
+                arrow={true}
+                closeOnDocumentClick
             >
-                <span className="text-sm"><FaTrash /></span> &nbsp; Delete Table
-            </button>
+                <div className="bg-white shadow-lg w-48 sm:w-96 rounded-lg text-sm border border-gray-200">
+                    <div className="bg-slate-700 rounded-t-lg p-4 border-b border-gray-200">
+                        <h2 className="font-bold text-white">Are you sure you want to delete this table?</h2>
+                    </div>
+                    <div className="p-4">
+                        <h4 className="font-medium text-slate-500">To confirm deletion, type the name of this table in the field.</h4>
+                        <input 
+                            type="text"
+                            placeholder={title}
+                            value={confirmDeleteInput}
+                            onInput={(e: any) => {setConfirmDeleteInput(e.target.value)}}
+                            className="bg-white text-wrap w-full h-7 px-2 text-sm rounded-md border border-gray-300 my-1
+                                    focus:border-sky-300 hover:border-sky-300 outline-none italic"
+                        />
+                        <button
+                            disabled={confirmDeleteInput != title}
+                            className={`${confirmDeleteInput == title ? "bg-red-700 hover:bg-red-900 text-white" : "bg-gray-200 text-gray-300"} button rounded-md text-center p-2 w-full font-bold`}
+                            onClick={() => deleteTableHandler()}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </Popup>
         </div>
         {/* Table */}
+        <input
+            className="text-left outline-none font-bold rounded-lg border border-white hover:border-sky-300 focus:border-sky-300 text-slate-500 p-1 mb-2"
+            type="text"
+            value={title}
+            placeholder="Untitled"
+            onInput={(e: any) => {setTitle(e.target.value)}}
+            onBlur={() => {updateTitle()}}
+        />
         <Table
             data={data[activeTabIndex].data}
             setData={setTableData(activeTabIndex)}

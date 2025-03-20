@@ -5,8 +5,6 @@ interface TableFileCellProps {
     value: HTMLInputElement | string,
     onEdit: (e: any) => void,
     edited: boolean,
-    type?: string,
-    caseSensitive?: boolean,
 };
 
 const DEMARKATION = ":BAKEDINSIGHTS-DEMARKATION-PRESIGNED-URL:"
@@ -22,7 +20,7 @@ export const TableFileCell: React.FC<TableFileCellProps> = ({ value, onEdit, edi
     };
 
     return (
-        <td className="min-w-40">
+        <td className="min-w-24">
             <div className="flex flex-row items-center">
                 {(typeof value == "string" && value.length > 0)
                     ? <Fragment>

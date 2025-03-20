@@ -6,7 +6,8 @@ import { useChecklistTemplates, useChecklistTemplateDetails } from '../../hooks/
 import { APIChecklistField, ChecklistFieldTypes } from '../../types/checklist';
 import { ShareTemplate } from '../../components/Checklist/ShareTemplate';
 
-export const ChecklistTemplateDetails: React.FC = () => { const navigate = useNavigate();
+export const ChecklistTemplateDetails: React.FC = () => {
+    const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     if (!id) {
         return <></>;
@@ -201,22 +202,23 @@ export const ChecklistTemplateDetails: React.FC = () => { const navigate = useNa
             >
                 <IoIosArrowBack /> Back
             </button>
-            <input
-                className="min-w-32 max-w-60 w-full text-center outline-none font-bold rounded-lg border border-white hover:border-sky-300 focus:border-sky-300 text-slate-500 p-1 mx-auto"
-                type="text"
-                value={title}
-                placeholder="Untitled"
-                onInput={(e: any) => {setTitle(e.target.value)}}
-                onBlur={() => {updateTitle()}}
-            />
             <ShareTemplate templateID={+id}/>
             <button
                 className="ml-4 mb-auto items-center flex flex-row border font-medium text-sm px-3 py-1.5 rounded-lg text-gray-500 border-gray-300 bg-white hover:border-red-500 hover:text-red-500 hover:bg-red-100"
                 onClick={() => {deleteTemplateHandler()}}
             >
-                <FaTrash className='text-sm'/> &nbsp; {hasChecklists ? "Archive" : "Delete"}
+                <FaTrash className='text-sm'/> &nbsp; {checklistTemplateDetails?.archived ?  "Unarchive" : hasChecklists ? "Archive" : "Delete"}
             </button>
         </div>
+        <h4 className="uppercase p-1 text-sm font-bold text-slate-400">Template</h4>
+        <input
+            className="w-full text-left outline-none font-bold rounded-lg border border-white hover:border-sky-300 focus:border-sky-300 text-slate-500 p-1 mb-2"
+            type="text"
+            value={title}
+            placeholder="Untitled"
+            onInput={(e: any) => {setTitle(e.target.value)}}
+            onBlur={() => {updateTitle()}}
+        />
         {!hasChecklists
             ? <div className="flex items-center justify-between flex-wrap flex-row space-y-0 pb-4">
                 <button
@@ -236,7 +238,7 @@ export const ChecklistTemplateDetails: React.FC = () => { const navigate = useNa
                     Save Changes
                 </button>
             </div>
-            : <p className="text-xs text-center mx-auto italic text-gray-500 pb-4">
+            : <p className="text-xs text-left w-full italic text-gray-500 pb-4 px-1">
                 This template was used to create a checklist and can longer be modified.
             </p>
         }

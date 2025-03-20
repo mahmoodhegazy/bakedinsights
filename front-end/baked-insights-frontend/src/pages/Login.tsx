@@ -29,15 +29,10 @@ export const Login: React.FC = () => {
         try {
             const { data } = await api.post('/auth/login', formValues);
             setAuth(data.user, data.access_token);
-            toast.success('Login succesful.');
+            toast.success('Login succesful');
             navigate('/tables');
         } catch (error: any) {
-            if (error.response?.status == 401) {
-                toast.error('Wrong username or password.');
-                return null
-            } else {
-                toast.error(`Login error ${error.response?.status}`);
-            }
+            // pass
         }
     };
 

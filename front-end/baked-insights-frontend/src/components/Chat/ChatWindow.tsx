@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IoMdClose } from "react-icons/io";
-import { IoAttach, IoDocument } from "react-icons/io5";
+import { IoAttach, IoDocument, IoRefreshOutline } from "react-icons/io5";
 import Select from 'react-select';
 import { AIService, ChatMessage, FileContext } from '../../services/aiService';
 import { FileService } from '../../services/fileService';
 import { toast } from 'react-toastify';
 import FormattedMessage from './FormattedMessage';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { formatDate } from '../../utils/dateUtils';
 import { APIChecklist, APIChecklistField, APIChecklistItem, APIChecklistTemplate } from '../../types/checklist';
 import { FileContextService } from '../../services/fileContextService';
+import { useDataRefreshStore } from '../../hooks/useDataRefreshStore';
 
 // Interface for table data
 interface TableData {
@@ -90,9 +91,49 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   const [showFileUploadArea, setShowFileUploadArea] = useState(false); // Toggle for file upload area
   const [s3FileContext, setS3FileContext] = useState<string>('');
   const [fileContextCount, setFileContextCount] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false); // State for tracking manual refresh
+  
+  // Get React Query client for manual cache invalidation
+  const queryClient = useQueryClient();
+  
+  // Access the data refresh store
+  const addDataRefreshListener = useDataRefreshStore(state => state.addListener);
+
+  // Set up a listener for data refresh events
+  useEffect(() => {
+    // Subscribe to data refresh events
+    const unsubscribe = addDataRefreshListener((event) => {
+      console.log('Data refresh event received:', event);
+      
+      // Invalidate queries based on the event type
+      if (event === 'sku-created' || event === 'table-data-updated') {
+        // Refresh SKU options
+        queryClient.invalidateQueries({ queryKey: ['skuOptions'] });
+      }
+      
+      if (event === 'lot-number-created' || event === 'table-data-updated') {
+        // Refresh lot number options
+        queryClient.invalidateQueries({ queryKey: ['lotNumberOptions'] });
+      }
+      
+      if (event === 'checklist-created' || event === 'checklist-submitted') {
+        // Refresh checklist data
+        queryClient.invalidateQueries({ queryKey: ['userChecklists'] });
+        queryClient.invalidateQueries({ queryKey: ['allChecklistDetails'] });
+      }
+      
+      if (event === 'table-created' || event === 'table-data-updated') {
+        // Refresh table context data
+        queryClient.invalidateQueries({ queryKey: ['tableContextData'] });
+      }
+    });
+    
+    // Clean up subscription on unmount
+    return () => unsubscribe();
+  }, [addDataRefreshListener, queryClient]);
 
   // Query to fetch all checklist templates (to get fields data)
-  const { data: checklistTemplates } = useQuery<APIChecklistTemplate[]>({
+  const { data: checklistTemplates, isLoading: isLoadingTemplates } = useQuery<APIChecklistTemplate[]>({
     queryKey: ['checklistTemplates'],
     queryFn: async () => {
       try {
@@ -102,11 +143,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         console.error("Error fetching checklist templates:", error);
         return [];
       }
-    }
+    },
+    // Add a reasonable staleTime to avoid unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Query to fetch all user checklists
-  const { data: userChecklists } = useQuery<APIChecklist[]>({
+  const { data: userChecklists, isLoading: isLoadingChecklists } = useQuery<APIChecklist[]>({
     queryKey: ['userChecklists'],
     queryFn: async () => {
       try {
@@ -116,11 +159,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         console.error("Error fetching user checklists:", error);
         return [];
       }
-    }
+    },
+    // Add a reasonable staleTime to avoid unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Fetch all checklist details (with items)
-  const { data: checklistDetails } = useQuery<
+  const { data: checklistDetails, isLoading: isLoadingChecklistDetails } = useQuery<
     { checklist: APIChecklist; items: APIChecklistItem[]; templateFields: APIChecklistField[] }[]
   >({
     queryKey: ['allChecklistDetails', userChecklists],
@@ -157,136 +202,152 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
 
       return details;
     },
-    enabled: !!(userChecklists && checklistTemplates)
+    enabled: !!(userChecklists && checklistTemplates),
+    // Add a reasonable staleTime to avoid unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Collect all unique SKUs from both tables and checklists
-  const { data: skuOptions } = useQuery<SelectOption[]>({
+  const { data: skuOptions, isLoading: isLoadingSKUs, refetch: refetchSKUs } = useQuery<SelectOption[]>({
     queryKey: ['skuOptions'],
     queryFn: async () => {
-      // Fetching SKU options directly from database tables and checklist items
-      const skuSet = new Set<string>();
-
-      // 1. Get SKUs from tables
+      setIsRefreshing(true);
       try {
-        const tablesResponse = await api.get('/tables/assigned');
-        const tables = tablesResponse.data.tables;
+        // Fetching SKU options directly from database tables and checklist items
+        const skuSet = new Set<string>();
 
-        const tableDataPromises = tables.map((table: { id: number }) => 
-          api.get(`/tables/${table.id}`)
-        );
-        
-        const tableResponses = await Promise.all(tableDataPromises);
-        
-        // Extract SKUs from tables
-        tableResponses.forEach(response => {
-          const table = response.data.table;
-          table.tabs?.forEach((tab: any) => {
-            tab.data.forEach((column: TableData) => {
-              if (column.header.column_data_type === 'sku') {
-                column.data.forEach(item => {
-                  if (item.value) {
-                    skuSet.add(item.value);
-                  }
-                });
-              }
+        // 1. Get SKUs from tables
+        try {
+          const tablesResponse = await api.get('/tables/assigned');
+          const tables = tablesResponse.data.tables;
+
+          const tableDataPromises = tables.map((table: { id: number }) => 
+            api.get(`/tables/${table.id}`)
+          );
+          
+          const tableResponses = await Promise.all(tableDataPromises);
+          
+          // Extract SKUs from tables
+          tableResponses.forEach(response => {
+            const table = response.data.table;
+            table.tabs?.forEach((tab: any) => {
+              tab.data.forEach((column: TableData) => {
+                if (column.header.column_data_type === 'sku') {
+                  column.data.forEach(item => {
+                    if (item.value) {
+                      skuSet.add(item.value);
+                    }
+                  });
+                }
+              });
             });
           });
-        });
-      } catch (error) {
-        console.error("Error getting SKUs from tables:", error);
-      }
-
-      // 2. Get SKUs directly from all checklists
-      try {
-        // Get all checklists
-        const checklistsResponse = await api.get('/checklists/');
-        const checklists = checklistsResponse.data;
-        
-        // For each checklist, get all its items
-        for (const checklist of checklists) {
-          try {
-            const itemsResponse = await api.get(`/checklists/${checklist.id}`);
-            const items = itemsResponse.data;
-            
-            // Use array reduce to filter and extract SKU items in one pass
-            items.reduce((set: { add: (arg0: any) => void; }, item: { data_type: string; value: any; }) => {
-              if (item.data_type === 'sku' && item.value && typeof item.value === 'string') {
-                set.add(item.value);
-              }
-              return set;
-            }, skuSet);
-
-          } catch (err) {
-            console.error(`Error fetching items for checklist ${checklist.id}:`, err);
-          }
+        } catch (error) {
+          console.error("Error getting SKUs from tables:", error);
         }
-      } catch (error) {
-        console.error("Error getting SKUs from checklists:", error);
-      }
 
-      const skuArray = Array.from(skuSet);
-      
-      return skuArray.map(sku => ({
-        value: sku,
-        label: sku
-      }));
-    }
+        // 2. Get SKUs directly from all checklists
+        try {
+          // Get all checklists
+          const checklistsResponse = await api.get('/checklists/');
+          const checklists = checklistsResponse.data;
+          
+          // For each checklist, get all its items
+          for (const checklist of checklists) {
+            try {
+              const itemsResponse = await api.get(`/checklists/${checklist.id}`);
+              const items = itemsResponse.data;
+              
+              // Use array reduce to filter and extract SKU items in one pass
+              items.reduce((set: Set<string>, item: any) => {
+                if (item.data_type === 'sku' && item.value && typeof item.value === 'string') {
+                  set.add(item.value);
+                }
+                return set;
+              }, skuSet);
+
+            } catch (err) {
+              console.error(`Error fetching items for checklist ${checklist.id}:`, err);
+            }
+          }
+        } catch (error) {
+          console.error("Error getting SKUs from checklists:", error);
+        }
+
+        const skuArray = Array.from(skuSet);
+        
+        return skuArray.map(sku => ({
+          value: sku,
+          label: sku
+        }));
+      } finally {
+        setIsRefreshing(false);
+      }
+    },
+    // Add a reasonable staleTime to avoid unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Collect all unique lot numbers from both tables and checklists
-  const { data: lotNumberOptions } = useQuery<SelectOption[]>({
+  const { data: lotNumberOptions, isLoading: isLoadingLotNumbers, refetch: refetchLotNumbers } = useQuery<SelectOption[]>({
     queryKey: ['lotNumberOptions'],
     queryFn: async () => {
-      const lotNumberSet = new Set<string>();
-
-      // 1. Get lot numbers from tables
+      setIsRefreshing(true);
       try {
-        const tablesResponse = await api.get('/tables/assigned');
-        const tables = tablesResponse.data.tables;
+        const lotNumberSet = new Set<string>();
 
-        const tableDataPromises = tables.map((table: { id: number }) => 
-          api.get(`/tables/${table.id}`)
-        );
-        
-        const tableResponses = await Promise.all(tableDataPromises);
-        
-        // Extract lot numbers from tables
-        tableResponses.forEach(response => {
-          const table = response.data.table;
-          table.tabs?.forEach((tab: any) => {
-            tab.data.forEach((column: TableData) => {
-              if (column.header.column_data_type === 'lot-number') {
-                column.data.forEach(item => {
-                  if (item.value) {
-                    lotNumberSet.add(item.value);
-                  }
-                });
+        // 1. Get lot numbers from tables
+        try {
+          const tablesResponse = await api.get('/tables/assigned');
+          const tables = tablesResponse.data.tables;
+
+          const tableDataPromises = tables.map((table: { id: number }) => 
+            api.get(`/tables/${table.id}`)
+          );
+          
+          const tableResponses = await Promise.all(tableDataPromises);
+          
+          // Extract lot numbers from tables
+          tableResponses.forEach(response => {
+            const table = response.data.table;
+            table.tabs?.forEach((tab: any) => {
+              tab.data.forEach((column: TableData) => {
+                if (column.header.column_data_type === 'lot-number') {
+                  column.data.forEach(item => {
+                    if (item.value) {
+                      lotNumberSet.add(item.value);
+                    }
+                  });
+                }
+              });
+            });
+          });
+        } catch (error) {
+          console.error("Error getting lot numbers from tables:", error);
+        }
+
+        // 2. Get lot numbers from checklists
+        if (checklistDetails) {
+          checklistDetails.forEach(({ items, templateFields }) => {
+            items.forEach(item => {
+              const field = templateFields.find(f => f.id === item.field_id);
+              if (field?.data_type === 'lot-number' && item.value) {
+                lotNumberSet.add(item.value);
               }
             });
           });
-        });
-      } catch (error) {
-        console.error("Error getting lot numbers from tables:", error);
+        }
+        
+        return Array.from(lotNumberSet).map(lotNumber => ({
+          value: lotNumber,
+          label: lotNumber
+        }));
+      } finally {
+        setIsRefreshing(false);
       }
-
-      // 2. Get lot numbers from checklists
-      if (checklistDetails) {
-        checklistDetails.forEach(({ items, templateFields }) => {
-          items.forEach(item => {
-            const field = templateFields.find(f => f.id === item.field_id);
-            if (field?.data_type === 'lot-number' && item.value) {
-              lotNumberSet.add(item.value);
-            }
-          });
-        });
-      }
-      
-      return Array.from(lotNumberSet).map(lotNumber => ({
-        value: lotNumber,
-        label: lotNumber
-      }));
-    }
+    },
+    // Add a reasonable staleTime to avoid unnecessary refetches
+    staleTime: 30000, // 30 seconds
   });
 
   // Filter checklist data based on selected SKU and date
@@ -356,7 +417,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   }, [checklistDetails, selectedSKU, selectedLotNumber, selectedDate]);
 
   // Query to fetch context data based on SKU, lot number, and date selection
-  const { data: tableContextData } = useQuery({
+  const { data: tableContextData, isLoading: isLoadingTableContext, refetch: refetchTableContext } = useQuery({
     queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, selectedDate],
     queryFn: async () => {
       if (!selectedSKU && !selectedLotNumber && !selectedDate) return null;
@@ -480,6 +541,36 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       checklists: filteredChecklistData || []
     };
   }, [tableContextData, filteredChecklistData]);
+
+  // Manual refresh function for fetching latest data
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    
+    // Create an array of promises for all data refetches
+    const refetchPromises = [
+      refetchSKUs(),
+      refetchLotNumbers(),
+      queryClient.invalidateQueries({ queryKey: ['checklistTemplates'] }),
+      queryClient.invalidateQueries({ queryKey: ['userChecklists'] }),
+      queryClient.invalidateQueries({ queryKey: ['allChecklistDetails'] })
+    ];
+    
+    // If context filters are set, also refresh context data
+    if (selectedSKU || selectedLotNumber || selectedDate) {
+      refetchPromises.push(refetchTableContext());
+    }
+    
+    // Wait for all refetches to complete
+    Promise.all(refetchPromises)
+      .catch(error => {
+        console.error('Error refreshing data:', error);
+        toast.error('Error refreshing data. Please try again.');
+      })
+      .finally(() => {
+        setIsRefreshing(false);
+        toast.success('Data refreshed successfully');
+      });
+  };
 
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -705,26 +796,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     }
   };
 
-// Fetch file context when filters change
-useEffect(() => {
-  const fetchFileContext = async () => {
-    if (selectedSKU || selectedLotNumber || selectedDate) {
-      const result = await FileContextService.getFileContext(
-        selectedSKU?.value,
-        selectedLotNumber?.value,
-        selectedDate
-      );
-      
-      setS3FileContext(result.formatted_context);
-      setFileContextCount(result.file_count);
-    } else {
-      setS3FileContext('');
-      setFileContextCount(0);
-    }
-  };
-  
-  fetchFileContext();
-}, [selectedSKU, selectedLotNumber, selectedDate]);
+  // Fetch file context when filters change
+  useEffect(() => {
+    const fetchFileContext = async () => {
+      if (selectedSKU || selectedLotNumber || selectedDate) {
+        const result = await FileContextService.getFileContext(
+          selectedSKU?.value,
+          selectedLotNumber?.value,
+          selectedDate
+        );
+        
+        setS3FileContext(result.formatted_context);
+        setFileContextCount(result.file_count);
+      } else {
+        setS3FileContext('');
+        setFileContextCount(0);
+      }
+    };
+    
+    fetchFileContext();
+  }, [selectedSKU, selectedLotNumber, selectedDate]);
 
   // Initial welcome message
   useEffect(() => {
@@ -737,38 +828,43 @@ useEffect(() => {
     }
   }, [isOpen]);
 
-// Current context summary for display
-const contextSummary = React.useMemo(() => {
-  if (!contextData) return null;
-  
-  const tableCount = Object.keys(contextData.tables).length;
-  const checklistCount = contextData.checklists.length;
-  const fileCount = uploadedFiles.filter(f => f.isProcessed).length;
-  const s3FileCount = fileContextCount;
-  
-  if (tableCount === 0 && checklistCount === 0 && fileCount === 0 && s3FileCount === 0) return null;
-  
-  const contextFilters = [];
-  if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
-  if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
-  if (selectedDate) contextFilters.push(`Date: ${selectedDate}`);
-  
-  const filterText = contextFilters.length > 0 
-    ? `Filters: ${contextFilters.join(', ')} | ` 
-    : '';
-  
-  let dataSources = [];
-  if (tableCount > 0) dataSources.push(`${tableCount} tables`);
-  if (checklistCount > 0) dataSources.push(`${checklistCount} checklists`);
-  if (fileCount > 0) dataSources.push(`${fileCount} uploaded files`);
-  if (s3FileCount > 0) dataSources.push(`${s3FileCount} attached files`);
-  
-  return (
-    <div className="text-xs text-gray-500 mt-1">
-      {filterText}Using: {dataSources.join(', ')}
-    </div>
-  );
-}, [contextData, selectedSKU, selectedLotNumber, selectedDate, uploadedFiles, fileContextCount]);
+  // Current context summary for display
+  const contextSummary = React.useMemo(() => {
+    if (!contextData) return null;
+    
+    const tableCount = Object.keys(contextData.tables).length;
+    const checklistCount = contextData.checklists.length;
+    const fileCount = uploadedFiles.filter(f => f.isProcessed).length;
+    const s3FileCount = fileContextCount;
+    
+    if (tableCount === 0 && checklistCount === 0 && fileCount === 0 && s3FileCount === 0) return null;
+    
+    const contextFilters = [];
+    if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
+    if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
+    if (selectedDate) contextFilters.push(`Date: ${selectedDate}`);
+    
+    const filterText = contextFilters.length > 0 
+      ? `Filters: ${contextFilters.join(', ')} | ` 
+      : '';
+    
+    let dataSources = [];
+    if (tableCount > 0) dataSources.push(`${tableCount} tables`);
+    if (checklistCount > 0) dataSources.push(`${checklistCount} checklists`);
+    if (fileCount > 0) dataSources.push(`${fileCount} uploaded files`);
+    if (s3FileCount > 0) dataSources.push(`${s3FileCount} attached files`);
+    
+    return (
+      <div className="text-xs text-gray-500 mt-1">
+        {filterText}Using: {dataSources.join(', ')}
+      </div>
+    );
+  }, [contextData, selectedSKU, selectedLotNumber, selectedDate, uploadedFiles, fileContextCount]);
+
+  // Combine all loading states
+  const isDataLoading = isLoadingTemplates || isLoadingChecklists || 
+                       isLoadingChecklistDetails || isLoadingSKUs || 
+                       isLoadingLotNumbers || isLoadingTableContext;
 
   if (!isOpen) return null;
 
@@ -781,12 +877,23 @@ const contextSummary = React.useMemo(() => {
       <div className="flex flex-col p-4 border-b border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">AI Assistant</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <IoMdClose className="w-6 h-6" />
-          </button>
+          <div className="flex items-center">
+            {/* Add refresh button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || isDataLoading}
+              className={`text-gray-500 hover:text-blue-500 mr-2 ${isRefreshing || isDataLoading ? 'opacity-50 cursor-not-allowed animate-spin' : ''}`}
+              title="Refresh data"
+            >
+              <IoRefreshOutline className="w-5 h-5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <IoMdClose className="w-6 h-6" />
+            </button>
+          </div>
         </div>
         <div className="space-y-2">
           <Select
@@ -796,6 +903,7 @@ const contextSummary = React.useMemo(() => {
             placeholder="Select a SKU for context..."
             isClearable
             className="w-full mb-2"
+            isLoading={isLoadingSKUs || isRefreshing}
           />
           
           <Select
@@ -805,6 +913,7 @@ const contextSummary = React.useMemo(() => {
             placeholder="Select a Lot Number..."
             isClearable
             className="w-full mb-2"
+            isLoading={isLoadingLotNumbers || isRefreshing}
           />
           
           <input
@@ -812,6 +921,7 @@ const contextSummary = React.useMemo(() => {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isRefreshing}
           />
           {contextSummary}
         </div>

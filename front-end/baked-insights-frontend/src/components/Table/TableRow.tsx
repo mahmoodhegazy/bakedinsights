@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import Popup from 'reactjs-popup';
 import { Fragment } from 'react';
 import { TableTextCell } from '../../components/Table/TableTextCell';
 import { TableSelectCell } from '../../components/Table/TableSelectCell';
@@ -20,6 +22,8 @@ interface TableRowProps {
 
 export const TableRow : React.FC<TableRowProps> = ({ rowIndex, onEditHandler, onDeleteHandler, onUndoHandler, onSaveHandler, rowData, newColumnEnabled }) => {
 
+    const [confirmDeleteInput, setConfirmDeleteInput] = useState<string>("");
+
     const checkRowEdited = (cells: TableCell[]) => {
         let rowStatus = [];
         for (var i = 0; i < cells.length; i++) {
@@ -27,14 +31,60 @@ export const TableRow : React.FC<TableRowProps> = ({ rowIndex, onEditHandler, on
         }
         return rowStatus;
     };
+
+    const deleteButton = (
+        <button
+            {...(true && {
+                    "data-tooltip-id": "tablerow-delete-tooltip",
+                    "data-tooltip-content": "Delete record.",
+                    "data-tooltip-place": "top",
+                })}
+            type="button"
+            disabled={false}
+            className={`text-sm text-gray-500 hover:text-pink-700 mx-2`}>
+            <FaTrash />
+        </button>
+    );
+
     return (
         <tr key={rowIndex} className="bg-white border-b border-gray-100 h-10 text-gray-500">
             {
                 rowData.map((cellData, colIndex) => (
-                    ["text", "sku", "lot-number"].includes(rowData[colIndex].dataType)
+                    ["long-text"].includes(rowData[colIndex].dataType)
                         ? <Fragment key={colIndex}>
                             <TableTextCell
+                                type="textarea"
                                 caseSensitive={!["sku", "lot-number"].includes(rowData[colIndex].dataType)}
+                                value={rowData[colIndex].dataValue}
+                                edited={checkRowEdited(rowData)[colIndex]}
+                                onEdit={onEditHandler(rowIndex, colIndex)}/>
+                            <td />
+                            </Fragment>
+                    : ["text"].includes(rowData[colIndex].dataType)
+                        ? <Fragment key={colIndex}>
+                            <TableTextCell
+                                type="text"
+                                caseSensitive={true}
+                                value={rowData[colIndex].dataValue}
+                                edited={checkRowEdited(rowData)[colIndex]}
+                                onEdit={onEditHandler(rowIndex, colIndex)}/>
+                            <td />
+                            </Fragment>
+                    : ["password"].includes(rowData[colIndex].dataType)
+                        ? <Fragment key={colIndex}>
+                            <TableTextCell
+                                type="password"
+                                caseSensitive={true}
+                                value={rowData[colIndex].dataValue}
+                                edited={checkRowEdited(rowData)[colIndex]}
+                                onEdit={onEditHandler(rowIndex, colIndex)}/>
+                            <td />
+                            </Fragment>
+                    : ["sku", "lot-number"].includes(rowData[colIndex].dataType)
+                        ? <Fragment key={colIndex}>
+                            <TableTextCell
+                                type="text"
+                                caseSensitive={false}
                                 value={rowData[colIndex].dataValue}
                                 edited={checkRowEdited(rowData)[colIndex]}
                                 onEdit={onEditHandler(rowIndex, colIndex)}/>
@@ -123,18 +173,34 @@ export const TableRow : React.FC<TableRowProps> = ({ rowIndex, onEditHandler, on
                         <FaCheck />
                     </button>
                     <Tooltip id="tablerow-delete-tooltip" />
-                    <button
-                        {...(true && {
-                                "data-tooltip-id": "tablerow-delete-tooltip",
-                                "data-tooltip-content": "Delete record.",
-                                "data-tooltip-place": "top",
-                            })}
-                        type="button"
-                        disabled={false}
-                        onClick={onDeleteHandler(rowIndex)}
-                        className={`text-sm text-gray-500 hover:text-pink-700 mx-2`}>
-                        <FaTrash />
-                    </button>
+                    <Popup
+                        trigger={deleteButton}
+                        position="left center"
+                        on={["click"]}
+                        arrow={true}
+                    >
+                        <div className="bg-white shadow-lg w-64 rounded-lg text-sm border border-gray-200">
+                            <div className="p-4">
+                                <h4 className="font-medium text-slate-500">To confirm deletion of <span className="font-bold text-red-700">record {rowIndex+1}</span> type <span className="italic font-bold">delete</span> in the field.</h4>
+                                <input 
+                                    type="text"
+                                    placeholder={"delete"}
+                                    value={confirmDeleteInput}
+                                    onInput={(e: any) => {setConfirmDeleteInput(e.target.value)}}
+                                    className="bg-white text-wrap w-full h-7 px-2 text-sm rounded-md border border-gray-300 my-1
+                                            focus:border-sky-300 hover:border-sky-300 outline-none italic"
+                                />
+                                <button
+                                    disabled={confirmDeleteInput != "delete"}
+                                    className={`${confirmDeleteInput == "delete" ? "bg-red-700 hover:bg-red-900 text-white" : "bg-gray-200 text-gray-300"} button rounded-md text-center p-2 w-full font-bold`}
+                                    onClick={onDeleteHandler(rowIndex)}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </Popup>
+
                 </div>
             </td>
         </tr>

@@ -1,8 +1,6 @@
 import api from '../api/axios';
 import { User } from '../types/index';
 
-const defaultPassword = "Penguin1!";
-
 export class UserService {
 
     // Get all Users
@@ -25,12 +23,8 @@ export class UserService {
     }
 
     static async createUser(data: User) {
-        const apiData = {
-            ...data,
-            password: defaultPassword,
-        }
         try {
-            const response = await api.post('/users/', apiData);
+            const response = await api.post('/users/', data);
             return response.data;
         } catch(e: any) {
             return Promise.reject(new Error(`${e.message}`));

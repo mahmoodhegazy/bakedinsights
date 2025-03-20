@@ -18,6 +18,7 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({ header, colInd
     const [fieldName, setFieldName] = useState<string>("");
     const [fieldType, setFieldType] = useState<string>("");
     const [edited, setEdited] = useState<boolean>(false);
+    const [confirmDeleteInput, setConfirmDeleteInput] = useState<string>("");
 
     useEffect(() => {
         if (!isControlCell) {
@@ -64,6 +65,19 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({ header, colInd
         </th>
     );
 
+    const deleteButton = (
+        <button
+            {...(true && {
+                    "data-tooltip-id": "tableheader-delete-tooltip",
+                    "data-tooltip-content": "Delete Field",
+                    "data-tooltip-place": "bottom",
+                })}
+            type="button"
+            className={`text-sm text-gray-500 hover:text-pink-700 outline-none px-2`}>
+            <FaTrash />
+        </button>
+    );
+
     return (
         <Popup
             key={colIndex}
@@ -71,7 +85,7 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({ header, colInd
             position="bottom left"
             on={[`${isControlCell ? "click" : "right-click"}`]}
             arrow={true}
-            closeOnDocumentClick
+            nested
         >
             <div className="bg-white p-4 drop-shadow-lg rounded-lg flex flex-col">
                 <div className="mb-4">
@@ -124,24 +138,47 @@ export const TableHeaderCell: React.FC<TableHeaderCellProps> = ({ header, colInd
                             type="button"
                             onClick={onSaveHandler}
                             className={`${!edited ? "text-gray-300" : "text-sky-500 hover:text-sky-700"} text-sm outline-none px-2`}>
-                            <FaCheck />
+                            {!isControlCell ?
+                                <FaCheck />
+                                : <div className="text-center">
+                                    <p className="text-xs font-bold">Done</p>
+                                    <FaCheck className="mx-auto mt-1"/>
+                                </div>
+                            }
                         </button>
                         </>
                     }
                     {(header.canDelete && !isControlCell) &&
                         <>
                         <Tooltip id="tableheader-delete-tooltip" />
-                        <button
-                            {...(true && {
-                                    "data-tooltip-id": "tableheader-delete-tooltip",
-                                    "data-tooltip-content": "Delete Field",
-                                    "data-tooltip-place": "bottom",
-                                })}
-                            type="button"
-                            onClick={onDeleteHandler}
-                            className={`text-sm text-gray-500 hover:text-pink-700 outline-none px-2`}>
-                            <FaTrash />
-                        </button>
+                        <Popup
+                            trigger={deleteButton}
+                            position="top center"
+                            on={["click"]}
+                            arrow={true}
+                            nested
+                        >
+                            <div className="bg-white shadow-lg w-64 rounded-lg text-sm border border-gray-200">
+                               <div className="p-4">
+                                    <h4 className="font-medium text-slate-500">To confirm deletion, type the name of this column in the field.</h4>
+                                    <input 
+                                        type="text"
+                                        placeholder={fieldName}
+                                        value={confirmDeleteInput}
+                                        onInput={(e: any) => {setConfirmDeleteInput(e.target.value)}}
+                                        className="bg-white text-wrap w-full h-7 px-2 text-sm rounded-md border border-gray-300 my-1
+                                                focus:border-sky-300 hover:border-sky-300 outline-none italic"
+                                    />
+                                    <button
+                                        disabled={confirmDeleteInput != fieldName}
+                                        className={`${confirmDeleteInput == fieldName ? "bg-red-700 hover:bg-red-900 text-white" : "bg-gray-200 text-gray-300"} button rounded-md text-center p-2 w-full font-bold`}
+                                        onClick={onDeleteHandler}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </Popup>
                         </>
                     }
                 </div>

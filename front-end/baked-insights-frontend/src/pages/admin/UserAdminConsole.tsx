@@ -83,7 +83,7 @@ export const UserAdminConsole: React.FC = () => {
                     <div className="flex grow justify-center items-center p-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                     </div>
-            ) : (!isLoadingCurrentUser && currentUser && !currentUser.is_admin_role) 
+            ) : (!isLoadingCurrentUser && currentUser && !currentUser.is_super_admin_role) 
                 ? <div className="max-w-4xl mx-auto py-8 px-4">
                     <div className="text-center py-12">
                         <h3 className="text-lg font-medium text-gray-900">

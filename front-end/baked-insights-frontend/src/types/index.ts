@@ -9,6 +9,7 @@ export interface User {
     phone: string;
     password?: string,
     is_admin_role?: boolean,
+    is_super_admin_role?: boolean,
   }
   
 

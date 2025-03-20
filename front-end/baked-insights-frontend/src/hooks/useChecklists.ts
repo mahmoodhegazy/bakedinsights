@@ -23,9 +23,6 @@ export const useTemplateShares = (template_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`templateShares-${template_id}`] });
             toast.success("Succesfully updated template shares.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
    // Return all the necessary data and functions for components to use
@@ -60,9 +57,6 @@ export const useChecklistTemplateDetails = (template_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`checklistTemplate-${template_id}`] });
             toast.success("Succesfully updated template.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteFieldMutation = useMutation({
@@ -70,9 +64,6 @@ export const useChecklistTemplateDetails = (template_id: number) => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`checklistTemplate-${template_id}`] });
             toast.success("Succesfully updated template.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -109,9 +100,6 @@ export const useChecklistTemplates = () => {
             queryClient.invalidateQueries({ queryKey: ['checklistTemplates'] });
             toast.success("Succesfully created template.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteChecklistTemplateMutation = useMutation({
@@ -120,9 +108,6 @@ export const useChecklistTemplates = () => {
             queryClient.invalidateQueries({ queryKey: ['checklistTemplates'] });
             queryClient.invalidateQueries({ queryKey: ['checklists'] });
             toast.success("Succesfully deleted template.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -160,9 +145,6 @@ export const useChecklists = () => {
             queryClient.invalidateQueries({ queryKey: ['checklists'] });
             toast.success("Succesfully created checklist.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const deleteChecklistMutation = useMutation({
@@ -170,9 +152,6 @@ export const useChecklists = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [`checklists`] });
             toast.success("Succesfully deleted checklist.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 
@@ -211,9 +190,6 @@ export const useChecklistDetails = (checklist_id: number) => {
             queryClient.invalidateQueries({ queryKey: ['checklists'] });
             toast.success("Succesfully updated checklist.");
         },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
-        },
     });
 
     const submitChecklistMutation = useMutation({
@@ -222,9 +198,6 @@ export const useChecklistDetails = (checklist_id: number) => {
             queryClient.invalidateQueries({ queryKey: [`checklists-${checklist_id}`] });
             queryClient.invalidateQueries({ queryKey: ['checklists'] });
             toast.success("Succesfully submitted checklist.");
-        },
-        onError: (error: Error) => {
-            toast.error(`${error}`);
         },
     });
 

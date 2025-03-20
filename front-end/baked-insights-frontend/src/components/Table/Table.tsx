@@ -180,7 +180,7 @@ export const Table : React.FC<TableProps> = ({
 
     return (
         <>
-        <div className="flex items-center justify-between flex-wrap flex-row space-y-0 pb-4">
+        <div className="flex items-center justify-between flex-wrap flex-row gap-2 pb-4">
             <button
                 className={`${false ? "text-gray-300 bg-gray-50 border-gray-100": "text-gray-500 bg-white border-gray-300"} inline-flex items-center border hover:bg-gray-100 font-medium rounded-lg text-sm px-3 py-1.5`}
                 onClick={addRowHandler}

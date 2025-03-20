@@ -94,6 +94,7 @@ export interface TableSelectData {
 
 export const TableFieldTypes = [
     "text",
+    "long-text",
     "number",
     "boolean",
     "date",
@@ -105,6 +106,7 @@ export const TableFieldTypes = [
 
 export const PrivateTableFieldTypes = [
     "primary-key",
+    "password",
     "role",
     ...TableFieldTypes,
 ]
