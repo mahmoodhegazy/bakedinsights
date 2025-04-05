@@ -17,14 +17,16 @@ export class FileContextService {
   static async getFileContext(
     sku?: string,
     lotNumber?: string, 
-    date?: string
+    startDate?: string,
+    endDate?: string
   ): Promise<FileContextResponse> {
     try {
       // Build query parameters
       const params = new URLSearchParams();
       if (sku) params.append('sku', sku);
       if (lotNumber) params.append('lot_number', lotNumber);
-      if (date) params.append('date', date);
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
       
       // Make the request
       const response = await api.get<FileContextResponse>(

@@ -99,7 +99,8 @@ def get_file_context_for_ai():
     Query Parameters:
         sku: SKU to filter by
         lot_number: Lot number to filter by
-        date: Date to filter by
+        start_date: Start date for date range
+        end_date: End date for date range
         
     Returns:
         Structured file context information for AI
@@ -108,12 +109,13 @@ def get_file_context_for_ai():
         # Get query parameters
         sku = request.args.get('sku')
         lot_number = request.args.get('lot_number')
-        date = request.args.get('date')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
         
         # Must have at least one filter
-        if not any([sku, lot_number, date]):
+        if not any([sku, lot_number, start_date, end_date]):
             return jsonify({
-                "message": "At least one filter (sku, lot_number, date) must be provided"
+                "message": "At least one filter (SKU, LOT number, Date Range) must be provided"
             }), 400
             
         # Find matching table data with file attachments
@@ -132,9 +134,28 @@ def get_file_context_for_ai():
             record_ids = [data.record_id for data in lot_records]
             table_data_query = table_data_query.filter(TableData.record_id.in_(record_ids))
             
-        if date:
-            # Find records that have this date
-            date_records = TableData.query.filter_by(value_date=date).all()
+        if start_date or end_date:
+            # Find records that fall within the date range
+            date_records = []
+            date_query = TableData.query
+            
+            if start_date and end_date:
+                # Filter records between start_date and end_date
+                date_records = date_query.filter(
+                    TableData.value_date >= start_date,
+                    TableData.value_date <= end_date
+                ).all()
+            elif start_date:
+                # Filter records on or after start_date
+                date_records = date_query.filter(
+                    TableData.value_date >= start_date
+                ).all()
+            elif end_date:
+                # Filter records on or before end_date
+                date_records = date_query.filter(
+                    TableData.value_date <= end_date
+                ).all()
+                
             record_ids = [data.record_id for data in date_records]
             table_data_query = table_data_query.filter(TableData.record_id.in_(record_ids))
             
@@ -151,9 +172,21 @@ def get_file_context_for_ai():
         if lot_number:
             checklist_items_query = checklist_items_query.filter_by(value_lotnum=lot_number)
 
-        # if date:
-        #     checklist_items_query = checklist_items_query.filter_by(completed_at=date)   
-
+        # Apply date range filter to checklist items
+        if start_date or end_date:
+            if start_date and end_date:
+                checklist_items_query = checklist_items_query.filter(
+                    ChecklistItem.completed_at >= start_date,
+                    ChecklistItem.completed_at <= end_date
+                )
+            elif start_date:
+                checklist_items_query = checklist_items_query.filter(
+                    ChecklistItem.completed_at >= start_date
+                )
+            elif end_date:
+                checklist_items_query = checklist_items_query.filter(
+                    ChecklistItem.completed_at <= end_date
+                )
             
         # Execute query
         checklist_items = checklist_items_query.all()

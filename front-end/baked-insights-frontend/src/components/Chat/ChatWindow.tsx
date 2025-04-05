@@ -84,7 +84,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false); // Loading state for AI processing
   const [selectedSKU, setSelectedSKU] = useState<SelectOption | null>(null);
   const [selectedLotNumber, setSelectedLotNumber] = useState<SelectOption | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null); // Reference for auto-scrolling
   const fileInputRef = useRef<HTMLInputElement>(null); // Reference for file input
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]); // State for uploaded files
@@ -356,10 +357,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
 
     return checklistDetails
       .filter(({ checklist, items, templateFields }) => {
-        // Date filter
-        if (selectedDate) {
-          const checklistDate = new Date(checklist.created_at).toISOString().split('T')[0];
-          if (checklistDate !== selectedDate) return false;
+        // Date range filter
+        if (startDate || endDate) {
+          const checklistDate = new Date(checklist.created_at);
+          const checklistDateStr = checklistDate.toISOString().split('T')[0];
+          
+          // Filter out dates before the start date (if specified)
+          if (startDate && checklistDateStr < startDate) return false;
+          
+          // Filter out dates after the end date (if specified)
+          if (endDate && checklistDateStr > endDate) return false;
         }
 
         // SKU filter
@@ -414,13 +421,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
 
         return formattedChecklist;
       });
-  }, [checklistDetails, selectedSKU, selectedLotNumber, selectedDate]);
+  }, [checklistDetails, selectedSKU, selectedLotNumber, startDate, endDate]);
 
   // Query to fetch context data based on SKU, lot number, and date selection
   const { data: tableContextData, isLoading: isLoadingTableContext, refetch: refetchTableContext } = useQuery({
-    queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, selectedDate],
+    queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, startDate, endDate],
     queryFn: async () => {
-      if (!selectedSKU && !selectedLotNumber && !selectedDate) return null;
+      if (!selectedSKU && !selectedLotNumber && !(startDate || endDate)) return null;
 
       const response = await api.get('/tables/assigned');
       const tables = response.data.tables;
@@ -479,8 +486,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             }
           }
           
-          // Filter by Date  
-          if (selectedDate) {
+          // Filter by Date Range
+          if (startDate || endDate) {
             const dateColumn = tab.data.find((col: TableData) => 
               col.header.column_data_type === 'date'
             );
@@ -490,8 +497,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
               
               dateColumn.data
                 .filter((item: { value: string; }) => {
-                  const itemDate = new Date(item.value).toISOString().split('T')[0];
-                  return itemDate === selectedDate;
+                  const itemDate = new Date(item.value);
+                  const itemDateStr = itemDate.toISOString().split('T')[0];
+                  
+                  let inRange = true;
+                  if (startDate && itemDateStr < startDate) inRange = false;
+                  if (endDate && itemDateStr > endDate) inRange = false;
+                  
+                  return inRange;
                 })
                 .forEach((item: { record_id: number; }) => dateRecords.add(item.record_id));
               
@@ -531,7 +544,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       
       return contextData;
     },
-    enabled: !!(selectedSKU || selectedLotNumber || selectedDate)
+    enabled: !!(selectedSKU || selectedLotNumber || startDate || endDate)
   });
 
   // Prepare combined context data from both tables and checklists
@@ -556,7 +569,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     ];
     
     // If context filters are set, also refresh context data
-    if (selectedSKU || selectedLotNumber || selectedDate) {
+    if (selectedSKU || selectedLotNumber || startDate || endDate) {
       refetchPromises.push(refetchTableContext());
     }
     
@@ -761,7 +774,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         const contextInfo = [];
         if (selectedSKU) contextInfo.push(`SKU ${selectedSKU.value}`);
         if (selectedLotNumber) contextInfo.push(`Lot Number ${selectedLotNumber.value}`);
-        if (selectedDate) contextInfo.push(`date ${selectedDate}`);
+        if (startDate || endDate) {
+          let dateFilter = "Date range: ";
+          if (startDate) dateFilter += formatDate(startDate);
+          dateFilter += " to ";
+          if (endDate) dateFilter += formatDate(endDate);
+          else dateFilter += "present";
+          
+          contextInfo.push(dateFilter);
+        }
         
         const contextMessage: ChatMessage = {
           role: 'system',
@@ -799,11 +820,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   // Fetch file context when filters change
   useEffect(() => {
     const fetchFileContext = async () => {
-      if (selectedSKU || selectedLotNumber || selectedDate) {
+      if (selectedSKU || selectedLotNumber || startDate || endDate) {
         const result = await FileContextService.getFileContext(
           selectedSKU?.value,
           selectedLotNumber?.value,
-          selectedDate
+          startDate,
+          endDate
         );
         
         setS3FileContext(result.formatted_context);
@@ -815,7 +837,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     };
     
     fetchFileContext();
-  }, [selectedSKU, selectedLotNumber, selectedDate]);
+  }, [selectedSKU, selectedLotNumber, startDate, endDate]);
 
   // Initial welcome message
   useEffect(() => {
@@ -842,7 +864,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     const contextFilters = [];
     if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
     if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
-    if (selectedDate) contextFilters.push(`Date: ${selectedDate}`);
+    if (startDate || endDate) {
+      let dateFilter = "Date range: ";
+      if (startDate) dateFilter += formatDate(startDate);
+      dateFilter += " to ";
+      if (endDate) dateFilter += formatDate(endDate);
+      else dateFilter += "present";
+      
+      contextFilters.push(dateFilter);
+    }
     
     const filterText = contextFilters.length > 0 
       ? `Filters: ${contextFilters.join(', ')} | ` 
@@ -859,7 +889,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         {filterText}Using: {dataSources.join(', ')}
       </div>
     );
-  }, [contextData, selectedSKU, selectedLotNumber, selectedDate, uploadedFiles, fileContextCount]);
+  }, [contextData, selectedSKU, selectedLotNumber, startDate, endDate, uploadedFiles, fileContextCount]);
 
   // Combine all loading states
   const isDataLoading = isLoadingTemplates || isLoadingChecklists || 
@@ -916,13 +946,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             isLoading={isLoadingLotNumbers || isRefreshing}
           />
           
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={isRefreshing}
-          />
+          <div className="space-y-1">
+            <div className="flex flex-col w-full">
+              <label className="px-1 text-xs font-medium text-slate-400 mb-1">Date Range</label>
+              <div className="flex space-x-2">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Start date"
+                  disabled={isRefreshing}
+                />
+                <span className="flex items-center text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="End date"
+                  disabled={isRefreshing}
+                />
+              </div>
+            </div>
+          </div>
           {contextSummary}
         </div>
       </div>
