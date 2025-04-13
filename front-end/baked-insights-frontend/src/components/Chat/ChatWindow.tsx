@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IoMdClose } from "react-icons/io";
 import { IoAttach, IoDocument, IoRefreshOutline } from "react-icons/io5";
-import Select from 'react-select';
+import Select, { MultiValue } from 'react-select';
 import { AIService, ChatMessage, FileContext } from '../../services/aiService';
 import { FileService } from '../../services/fileService';
 import { toast } from 'react-toastify';
@@ -12,6 +12,7 @@ import { formatDate } from '../../utils/dateUtils';
 import { APIChecklist, APIChecklistField, APIChecklistItem, APIChecklistTemplate } from '../../types/checklist';
 import { FileContextService } from '../../services/fileContextService';
 import { useDataRefreshStore } from '../../hooks/useDataRefreshStore';
+import { TableSelector } from './TableSelector';
 
 // Interface for table data
 interface TableData {
@@ -86,6 +87,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   const [selectedLotNumber, setSelectedLotNumber] = useState<SelectOption | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [selectedTables, setSelectedTables] = useState<MultiValue<{
+    value: number;
+    label: string;
+  }> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null); // Reference for auto-scrolling
   const fileInputRef = useRef<HTMLInputElement>(null); // Reference for file input
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]); // State for uploaded files
@@ -423,16 +428,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       });
   }, [checklistDetails, selectedSKU, selectedLotNumber, startDate, endDate]);
 
-  // Query to fetch context data based on SKU, lot number, and date selection
+  // Query to fetch context data based on SKU, lot number, date selection, and tables
   const { data: tableContextData, isLoading: isLoadingTableContext, refetch: refetchTableContext } = useQuery({
-    queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, startDate, endDate],
+    queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, startDate, endDate, selectedTables],
     queryFn: async () => {
-      if (!selectedSKU && !selectedLotNumber && !(startDate || endDate)) return null;
+      if (!selectedSKU && !selectedLotNumber && !(startDate || endDate) && (!selectedTables || selectedTables.length === 0)) {
+        return null;
+      }
 
-      const response = await api.get('/tables/assigned');
-      const tables = response.data.tables;
+      // If specific tables are selected, only fetch those
+      let tablesToFetch = [];
+      if (selectedTables && selectedTables.length > 0) {
+        tablesToFetch = selectedTables.map(table => ({ id: table.value }));
+      } else {
+        // Otherwise fetch all tables
+        const response = await api.get('/tables/assigned');
+        tablesToFetch = response.data.tables;
+      }
       
-      const tableDataPromises = tables.map((table: { id: any; }) => 
+      const tableDataPromises = tablesToFetch.map((table: { id: any; }) => 
         api.get(`/tables/${table.id}`)
       );
       const tableResponses = await Promise.all(tableDataPromises);
@@ -523,6 +537,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             }
           }
           
+          // If no specific filters are applied but tables are selected, include all records
+          if (matchingRecordIds.size === 0 && 
+              !selectedSKU && !selectedLotNumber && !(startDate || endDate) && 
+              selectedTables && selectedTables.length > 0) {
+            // Get all record IDs from this tab
+            tab.data.forEach((column: TableData) => {
+              column.data.forEach((item: { record_id: number }) => {
+                matchingRecordIds.add(item.record_id);
+              });
+            });
+          }
+          
           if (matchingRecordIds.size > 0) {
             tab.data.forEach((column: TableData) => {
               const columnData = column.data
@@ -544,7 +570,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       
       return contextData;
     },
-    enabled: !!(selectedSKU || selectedLotNumber || startDate || endDate)
+    enabled: !!(selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0))
   });
 
   // Prepare combined context data from both tables and checklists
@@ -554,6 +580,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       checklists: filteredChecklistData || []
     };
   }, [tableContextData, filteredChecklistData]);
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSelectedSKU(null);
+    setSelectedLotNumber(null);
+    setStartDate('');
+    setEndDate('');
+    setSelectedTables(null);
+  };
 
   // Manual refresh function for fetching latest data
   const handleManualRefresh = () => {
@@ -569,7 +604,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     ];
     
     // If context filters are set, also refresh context data
-    if (selectedSKU || selectedLotNumber || startDate || endDate) {
+    if (selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) {
       refetchPromises.push(refetchTableContext());
     }
     
@@ -744,6 +779,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     scrollToBottom();
   }, [messages]);
 
+  // Fetch file context when filters change
+  useEffect(() => {
+    const fetchFileContext = async () => {
+      if (selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) {
+        const result = await FileContextService.getFileContext(
+          selectedSKU?.value,
+          selectedLotNumber?.value,
+          startDate,
+          endDate,
+          selectedTables ? selectedTables.map(t => t.value) : undefined
+        );
+        
+        setS3FileContext(result.formatted_context);
+        setFileContextCount(result.file_count);
+      } else {
+        setS3FileContext('');
+        setFileContextCount(0);
+      }
+    };
+    
+    fetchFileContext();
+  }, [selectedSKU, selectedLotNumber, startDate, endDate, selectedTables]);
+
   // Message handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -774,6 +832,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         const contextInfo = [];
         if (selectedSKU) contextInfo.push(`SKU ${selectedSKU.value}`);
         if (selectedLotNumber) contextInfo.push(`Lot Number ${selectedLotNumber.value}`);
+        if (selectedTables && selectedTables.length > 0) {
+          const tableNames = selectedTables.map(t => t.label).join(', ');
+          contextInfo.push(`Tables: ${tableNames}`);
+        }
         if (startDate || endDate) {
           let dateFilter = "Date range: ";
           if (startDate) dateFilter += formatDate(startDate);
@@ -817,28 +879,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Fetch file context when filters change
-  useEffect(() => {
-    const fetchFileContext = async () => {
-      if (selectedSKU || selectedLotNumber || startDate || endDate) {
-        const result = await FileContextService.getFileContext(
-          selectedSKU?.value,
-          selectedLotNumber?.value,
-          startDate,
-          endDate
-        );
-        
-        setS3FileContext(result.formatted_context);
-        setFileContextCount(result.file_count);
-      } else {
-        setS3FileContext('');
-        setFileContextCount(0);
-      }
-    };
-    
-    fetchFileContext();
-  }, [selectedSKU, selectedLotNumber, startDate, endDate]);
-
   // Initial welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -864,6 +904,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     const contextFilters = [];
     if (selectedSKU) contextFilters.push(`SKU: ${selectedSKU.value}`);
     if (selectedLotNumber) contextFilters.push(`Lot#: ${selectedLotNumber.value}`);
+    if (selectedTables && selectedTables.length > 0) {
+      const tableNames = selectedTables.map(t => t.label).join(', ');
+      contextFilters.push(`Tables: ${tableNames}`);
+    }
     if (startDate || endDate) {
       let dateFilter = "Date range: ";
       if (startDate) dateFilter += formatDate(startDate);
@@ -889,7 +933,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         {filterText}Using: {dataSources.join(', ')}
       </div>
     );
-  }, [contextData, selectedSKU, selectedLotNumber, startDate, endDate, uploadedFiles, fileContextCount]);
+  }, [contextData, selectedSKU, selectedLotNumber, startDate, endDate, selectedTables, uploadedFiles, fileContextCount]);
 
   // Combine all loading states
   const isDataLoading = isLoadingTemplates || isLoadingChecklists || 
@@ -970,7 +1014,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
           </div>
+
+          <div className="space-y-1 mt-2">
+            <div className="flex flex-col w-full">
+              <label className="px-1 text-xs font-medium text-slate-400 mb-1">Tables</label>
+              <TableSelector
+                selectedTables={selectedTables}
+                onChange={setSelectedTables}
+              />
+            </div>
+          </div>
+          
           {contextSummary}
+          
+          {(selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) && (
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={resetFilters}
+                className="text-xs text-blue-500 hover:text-blue-700"
+              >
+                Reset filters
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

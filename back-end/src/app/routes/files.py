@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from app.services.file_service import FileProcessingService
 from app.services.file_context_service import FileContextService
-from app.models.table import TableData
+from app.models.table import TableData, Table
 from app.models.checklist import ChecklistItem
 
 file_bp = Blueprint('files', __name__)
@@ -101,6 +101,7 @@ def get_file_context_for_ai():
         lot_number: Lot number to filter by
         start_date: Start date for date range
         end_date: End date for date range
+        table_ids: Table IDs to filter by (can be multiple)
         
     Returns:
         Structured file context information for AI
@@ -112,14 +113,36 @@ def get_file_context_for_ai():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
+        # Get table IDs (can be multiple)
+        table_ids = request.args.getlist('table_ids')
+        table_ids = [int(id) for id in table_ids] if table_ids else []
+        
         # Must have at least one filter
-        if not any([sku, lot_number, start_date, end_date]):
+        if not any([sku, lot_number, start_date, end_date, table_ids]):
             return jsonify({
-                "message": "At least one filter (SKU, LOT number, Date Range) must be provided"
+                "message": "At least one filter (SKU, LOT number, Date Range, Tables) must be provided"
             }), 400
             
         # Find matching table data with file attachments
         table_data_query = TableData.query.filter(TableData.value_fpath.isnot(None))
+        
+        # Apply table filter if specified
+        if table_ids:
+            # Find tables with the specified IDs
+            tables = Table.query.filter(Table.id.in_(table_ids)).all()
+            if not tables:
+                return jsonify({
+                    "message": "No tables found with the provided IDs"
+                }), 404
+                
+            # Get all tab IDs from the selected tables
+            tab_ids = []
+            for table in tables:
+                for tab in table.tabs:
+                    tab_ids.append(tab.id)
+                    
+            # Filter table data by tab IDs
+            table_data_query = table_data_query.filter(TableData.tab_id.in_(tab_ids))
         
         # Apply filters
         if sku:
