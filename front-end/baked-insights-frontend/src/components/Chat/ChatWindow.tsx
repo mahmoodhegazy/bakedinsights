@@ -436,6 +436,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         return null;
       }
 
+      // Fetch all users to create a lookup map
+      let userMap: Record<number, string> = {};
+      try {
+        const usersResponse = await api.get('/users/');
+        const users = usersResponse.data.users;
+        
+        // Create a user ID to username lookup map
+        userMap = users.reduce((map: Record<number, string>, user: any) => {
+          map[user.id] = user.name || user.username || `User ${user.id}`;
+          return map;
+        }, {});
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+
       // If specific tables are selected, only fetch those
       let tablesToFetch = [];
       if (selectedTables && selectedTables.length > 0) {
@@ -553,7 +568,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             tab.data.forEach((column: TableData) => {
               const columnData = column.data
                 .filter(item => matchingRecordIds.has(item.record_id))
-                .map(item => item.value);
+                .map(item => {
+                  // Special handling based on data type
+                  switch (column.header.column_data_type) {
+                    case 'boolean':
+                      // Convert boolean values to "Yes" or "No"
+                      return item.value === true ? "Yes" : 
+                            item.value === false ? "No" : 
+                            "No";
+                    
+                    case 'user':
+                      // Look up username from user ID
+                      return userMap[item.value] || `User ${item.value}`;
+                    
+                    default:
+                      // Return value as is for other types
+                      return item.value;
+                  }
+                });
               
               if (columnData.length > 0) {
                 tabData[column.header.column_name] = columnData;
