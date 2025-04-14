@@ -994,12 +994,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   // Initial welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const welcomeMessage: ChatMessage = {
-        role: 'assistant',
-        content: JSON.stringify({
-          summary: "Welcome to Baked Insights!\n\nI'm your AI assistant, and I can help you analyze production data and answer questions about:\n\n* Specific SKUs and dates in your production records and checklists\n* Production trends and patterns\n* Quality metrics and compliance\n* Historical data analysis\n\nYou can upload files for analysis, or select a SKU and/or date above to get specific information. Feel free to ask me any general questions about the system.",
-          analysis: "You can:\n- Upload files for analysis\n- Select a SKU, lot number, or date range above to filter data\n- Ask questions about production records and checklists\n- Analyze quality metrics and compliance\n- Review historical data and trends"
-        })
+// In ChatWindow.tsx, modify the welcome message
+const welcomeMessage: ChatMessage = {
+  role: 'assistant',
+  content: `Welcome to Baked Insights!
+
+        I'm your AI assistant, and I can help you analyze production data and answer questions about your production records and checklists.
+        
+        ### You can do the following:
+
+        - Upload files for analysis
+        - Select a SKU, lot number, or date range above to filter data
+        - Ask questions about production records and checklists
+        - Analyze quality metrics and compliance
+        - Review historical data and trends
+        
+        Otherwise, feel free to ask me any general questions about the app.`
       };
       setMessages([welcomeMessage]);
     }
