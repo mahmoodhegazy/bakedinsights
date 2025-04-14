@@ -43,11 +43,44 @@ export class AIService {
                 - Share tables with other users
                 - Create and complete checklists for production requirements
                 - Monitor compliance and analyze production data
-                - Given a SKU/lot number/date, provide information about its production records and perform analysis for that SKU/lot number/date.
+                - Given a SKU/lot number/date, provide information about its production records and perform analysis
                 - Given a file, provide information about its contents and perform analysis based on the data.
                 
-                You should help users understand how to use these features and provide guidance on best practices for production record management.
-                If you don't know the answer, say "I don't know". Never say "I don't know" about a feature of the application, instead, say "I can't help you with that".`,
+                When presenting data about SKUs, tables, checklists, or files, ALWAYS respond with a JSON structure as follows:
+                
+                {
+                  "summary": "A brief summary of what was found or analyzed",
+                  "tables": {
+                    "Table Name 1": {
+                      "Column1": [value1, value2],
+                      "Column2": [value1, value2]
+                    }
+                  },
+                  "checklists": [
+                    {
+                      "name": "Checklist Name",
+                      "created_by": "User Name",
+                      "created_at": "Date",
+                      "status": "Submitted/Not Submitted",
+                      "completion": "X/Y tasks completed",
+                      "items": [
+                        {
+                          "field_name": "Field Name",
+                          "value": "Value",
+                          "comment": "Comment if any"
+                        }
+                      ]
+                    }
+                  ],
+                  "files_attached": {
+                    "filename.ext": "Content or summary of file content"
+                  },
+                  "analysis": "Any additional analysis or observations about the data"
+                }
+                
+                Don't include information about where files are stored (S3 bucket, presigned URL, etc.).
+                Focus on the content and analysis that would be useful to the user.
+                If anything is not applicable, omit that entire section from the JSON.`,
     };
     
     const messagesWithContext = [systemContext, ...messages];
@@ -66,7 +99,7 @@ export class AIService {
       
       const fileContextMessage: ChatMessage = {
         role: 'system',
-        content: `The user has uploaded the following files. Please analyze and use this information to answer their questions:\n\n${fileContextContent}`
+        content: `The user has uploaded the following files. Please analyze and use this information to answer their questions. Include relevant file information in your JSON response in the "files_attached" section:\n\n${fileContextContent}`
       };
       
       // Insert file context before the last user message for better context awareness

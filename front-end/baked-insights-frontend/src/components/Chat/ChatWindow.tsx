@@ -704,6 +704,195 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     });
   };
 
+  // Attempts to convert a plain text response to structured JSON format
+  const convertPlainTextToStructuredJSON = (text: string): string => {
+    // If the text already appears to be JSON, return it as is
+    if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
+      try {
+        // Validate that it's proper JSON
+        JSON.parse(text);
+        return text;
+      } catch (e) {
+        // If it's not valid JSON, proceed with conversion
+        console.log('Text appears to be JSON format but parsing failed, converting to proper JSON');
+      }
+    }
+    
+    // Extract sections from the text
+    const sections: any = {
+      summary: "",
+      tables: {},
+      checklists: [],
+      files_attached: {},
+      analysis: ""
+    };
+    
+    // Extract summary (first paragraph or section)
+    const firstParagraph = text.split('\n\n')[0];
+    sections.summary = firstParagraph;
+    
+    // Try to identify tables section
+    const tablesMatch = text.match(/(?:Production Records:|Tables:)([\s\S]*?)(?=Checklists:|Attached Files:|Analysis:|$)/i);
+    if (tablesMatch && tablesMatch[1]) {
+      const tablesText = tablesMatch[1].trim();
+      
+      // Split by potential table headers
+      const tableBlocks = tablesText.split(/(?=\*\*|^-{3,}|^\w+:)/m);
+      
+      tableBlocks.forEach(block => {
+        const tableMatch = block.match(/^(?:\*\*)?([^:*]+)(?:\*\*)?:([\s\S]*?)$/);
+        if (tableMatch) {
+          const tableName = tableMatch[1].trim();
+          const tableContent = tableMatch[2].trim();
+          
+          // Extract fields and values
+          const fields: any = {};
+          const fieldMatches = tableContent.matchAll(/(?:^|\n)(?:\*|-|\d+\.|\s)?\s*([^:]+):\s*([^\n]+)/g);
+          
+          Array.from(fieldMatches).forEach(match => {
+            const fieldName = match[1].trim();
+            const fieldValue = match[2].trim();
+            
+            // Convert to array if it seems to be multiple values
+            if (fieldValue.includes(',')) {
+              fields[fieldName] = fieldValue.split(',').map(v => v.trim());
+            } else {
+              fields[fieldName] = [fieldValue];
+            }
+          });
+          
+          if (Object.keys(fields).length > 0) {
+            sections.tables[tableName] = fields;
+          }
+        }
+      });
+    }
+    
+    // Try to identify checklists section
+    const checklistsMatch = text.match(/(?:Checklists:)([\s\S]*?)(?=Tables:|Attached Files:|Analysis:|$)/i);
+    if (checklistsMatch && checklistsMatch[1]) {
+      const checklistsText = checklistsMatch[1].trim();
+      
+      // Extract individual checklists
+      const checklistBlocks = checklistsText.split(/(?=There is one checklist|There are \d+ checklists|Checklist \d+:|Checklist:)/i);
+      
+      checklistBlocks.forEach(block => {
+        if (!block.trim()) return;
+        
+        const checklist: any = {
+          name: "Unknown Checklist",
+          created_by: "",
+          created_at: "",
+          status: "",
+          completion: "",
+          items: []
+        };
+        
+        // Extract checklist name
+        const nameMatch = block.match(/([^.,]+) (?:checklist|was created)/i);
+        if (nameMatch) {
+          checklist.name = nameMatch[1].trim();
+        }
+        
+        // Extract created by
+        const createdByMatch = block.match(/created by[^\w]*"?([^".,]+)"?/i);
+        if (createdByMatch) {
+          checklist.created_by = createdByMatch[1].trim();
+        }
+        
+        // Extract date
+        const dateMatch = block.match(/(?:on|date)[^\w]*([A-Za-z]+ \d+,? \d{4})/i);
+        if (dateMatch) {
+          checklist.created_at = dateMatch[1].trim();
+        }
+        
+        // Extract status
+        const statusMatch = block.match(/status is[^\w]*"?([^".,]+)"?/i);
+        if (statusMatch) {
+          checklist.status = statusMatch[1].trim();
+        }
+        
+        // Extract completion
+        const completionMatch = block.match(/(\d+\/\d+|[\d]+ out of [\d]+) tasks? (?:has been|have been)? completed/i);
+        if (completionMatch) {
+          checklist.completion = completionMatch[1].trim();
+        }
+        
+        // Extract items
+        const itemsMatch = block.match(/items?:([\s\S]*?)(?=\n\n|$)/i);
+        if (itemsMatch && itemsMatch[1]) {
+          const itemsText = itemsMatch[1].trim();
+          const itemLines = itemsText.split('\n');
+          
+          itemLines.forEach(line => {
+            const itemMatch = line.match(/-\s*([^:]+):\s*(.+)/);
+            if (itemMatch) {
+              const fieldName = itemMatch[1].trim();
+              const value = itemMatch[2].trim();
+              
+              checklist.items.push({
+                field_name: fieldName,
+                value: value,
+                comment: ""
+              });
+            }
+          });
+        }
+        
+        if (checklist.name !== "Unknown Checklist" || checklist.items.length > 0) {
+          sections.checklists.push(checklist);
+        }
+      });
+    }
+    
+    // Try to identify files section
+    const filesMatch = text.match(/(?:Attached Files:|File Analysis:|Files:)([\s\S]*?)(?=Tables:|Checklists:|Analysis:|$)/i);
+    if (filesMatch && filesMatch[1]) {
+      const filesText = filesMatch[1].trim();
+      
+      // Extract individual files
+      const fileBlocks = filesText.split(/(?=File \d+:|The file|There is a file)/i);
+      
+      fileBlocks.forEach(block => {
+        if (!block.trim()) return;
+        
+        // Try to extract filename
+        const filenameMatch = block.match(/file (?:named|called)? ["']?([^"'.,\n]+\.[a-z]{3,4})["']?/i);
+        if (filenameMatch) {
+          const filename = filenameMatch[1].trim();
+          
+          // Extract the rest as content
+          let content = block;
+          
+          // Remove common phrases about storage
+          content = content.replace(/(?:stored on|available through|accessed via|in an|on the) (?:Amazon S3 bucket|S3 bucket|presigned URL|storage bucket)/gi, '');
+          
+          // Get just the content description
+          const contentMatch = block.match(/(?:contains|has the following|structure|headers?|data):([\s\S]*?)(?=\n\n|$)/i);
+          if (contentMatch) {
+            content = contentMatch[1].trim();
+          }
+          
+          sections.files_attached[filename] = content;
+        }
+      });
+    }
+    
+    // Try to identify analysis section
+    const analysisMatch = text.match(/(?:Analysis:|In summary:|To summarize:|In conclusion:|Based on the data:|The data shows:|From this information:)([\s\S]*?)$/i);
+    if (analysisMatch && analysisMatch[1]) {
+      sections.analysis = analysisMatch[1].trim();
+    }
+    
+    // Clean up empty sections
+    if (Object.keys(sections.tables).length === 0) delete sections.tables;
+    if (sections.checklists.length === 0) delete sections.checklists;
+    if (Object.keys(sections.files_attached).length === 0) delete sections.files_attached;
+    if (!sections.analysis) delete sections.analysis;
+    
+    return JSON.stringify(sections);
+  };
+
   // Prepare file contexts for AI
   const prepareFileContexts = (): FileContext[] => {
     return uploadedFiles
@@ -802,6 +991,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     fetchFileContext();
   }, [selectedSKU, selectedLotNumber, startDate, endDate, selectedTables]);
 
+  // Initial welcome message
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      const welcomeMessage: ChatMessage = {
+        role: 'assistant',
+        content: JSON.stringify({
+          summary: "Welcome to Baked Insights!\n\nI'm your AI assistant, and I can help you analyze production data and answer questions about:\n\n* Specific SKUs and dates in your production records and checklists\n* Production trends and patterns\n* Quality metrics and compliance\n* Historical data analysis\n\nYou can upload files for analysis, or select a SKU and/or date above to get specific information. Feel free to ask me any general questions about the system.",
+          analysis: "You can:\n- Upload files for analysis\n- Select a SKU, lot number, or date range above to filter data\n- Ask questions about production records and checklists\n- Analyze quality metrics and compliance\n- Review historical data and trends"
+        })
+      };
+      setMessages([welcomeMessage]);
+    }
+  }, [isOpen]);
+
   // Message handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -846,9 +1049,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
           contextInfo.push(dateFilter);
         }
         
+        // Format context data as structured data
+        const formattedContextData = {
+          tables: contextData.tables,
+          checklists: contextData.checklists.map(checklist => ({
+            name: checklist.name,
+            created_by: checklist.created_by,
+            created_at: checklist.created_at,
+            status: checklist.status,
+            completion: checklist.completion,
+            items: checklist.items.map(item => ({
+              field_name: item.field_name,
+              field_type: item.field_type,
+              value: item.value,
+              comment: item.comment
+            }))
+          }))
+        };
+
         const contextMessage: ChatMessage = {
           role: 'system',
-          content: `Current context - Data for ${contextInfo.join(' and ')}:\n${JSON.stringify(contextData, null, 2)}`
+          content: `Current context - Data for ${contextInfo.join(' and ')}:\n${JSON.stringify(formattedContextData, null, 2)}\n\nRemember to respond with structured JSON as specified in the system instructions.`
         };
         contextMessages.push(contextMessage);
       }
@@ -857,7 +1078,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       if (s3FileContext) {
         const fileContextMessage: ChatMessage = {
           role: 'system',
-          content: `Attached files found for current context:\n${s3FileContext}`
+          content: `Attached files found for current context:\n${s3FileContext}\n\nRemember to include relevant file information in your JSON response in the "files_attached" section.`
         };
         contextMessages.push(fileContextMessage);
       }
@@ -865,11 +1086,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       // Prepare file contexts from uploaded files
       const fileContexts = prepareFileContexts();
       
-      // Debug logging to check the file contexts
-      console.log("File contexts prepared for AI:", fileContexts);
+      // Add a final reminder to format response as JSON
+      contextMessages.push({
+        role: 'system',
+        content: `Important: Format your entire response as a JSON object with the structure described in the system instructions. This is required for proper display in the UI.`
+      });
       
       const response = await AIService.getChatResponse([...contextMessages, userMessage], fileContexts);
-      const aiMessage: ChatMessage = { role: 'assistant', content: response };
+      
+      // Ensure the response is in JSON format
+      let responseContent = response;
+      if (!response.trim().startsWith('{') || !response.trim().endsWith('}')) {
+        try {
+          // Try to convert plain text to structured JSON
+          responseContent = convertPlainTextToStructuredJSON(response);
+        } catch (error) {
+          console.error('Error converting plain text to JSON:', error);
+          // If conversion fails, wrap the text in a simple JSON structure
+          responseContent = JSON.stringify({
+            summary: response
+          });
+        }
+      }
+      
+      const aiMessage: ChatMessage = { role: 'assistant', content: responseContent };
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error getting AI response:', error);
@@ -878,17 +1118,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       setIsLoading(false);
     }
   };
-
-  // Initial welcome message
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const welcomeMessage: ChatMessage = {
-        role: 'assistant',
-        content: `Welcome to Baked Insights!\n\nI'm your AI assistant, and I can help you analyze production data and answer questions about:\n\n* Specific SKUs and dates in your production records and checklists\n* Production trends and patterns\n* Quality metrics and compliance\n* Historical data analysis\n\nYou can upload files for analysis, or select a SKU and/or date above to get specific information. Feel free to ask me any general questions about the system.`
-      };
-      setMessages([welcomeMessage]);
-    }
-  }, [isOpen]);
 
   // Current context summary for display
   const contextSummary = React.useMemo(() => {
