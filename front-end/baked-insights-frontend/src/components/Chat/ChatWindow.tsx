@@ -176,9 +176,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   >({
     queryKey: ['allChecklistDetails', userChecklists],
     queryFn: async () => {
-      if (!userChecklists || !checklistTemplates) return [];
+      if (!userChecklists) return [];
 
-      // For each checklist, fetch its items and relevant template fields
+      // For each checklist, fetch its items and template fields
       const details = await Promise.all(
         userChecklists.map(async (checklist) => {
           try {
@@ -186,9 +186,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             const itemsResponse = await api.get(`/checklists/${checklist.id}`);
             const items = itemsResponse.data;
 
-            // Find corresponding template
-            const template = checklistTemplates.find(t => t.id === checklist.template_id);
-            const templateFields = template?.fields || [];
+            // Fetch the template details directly (which includes fields)
+            const templateResponse = await api.get(`/checklists/templates/${checklist.template_id}`);
+            const template = templateResponse.data;
+            const templateFields = template.fields || [];
 
             return {
               checklist,
@@ -208,7 +209,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
 
       return details;
     },
-    enabled: !!(userChecklists && checklistTemplates),
+    enabled: !!userChecklists,
     // Add a reasonable staleTime to avoid unnecessary refetches
     staleTime: 30000, // 30 seconds
   });
@@ -1142,7 +1143,7 @@ const welcomeMessage: ChatMessage = {
             status: checklist.status,
             completion: checklist.completion,
             items: checklist.items.map(item => ({
-              field_name: item.field_name, // This will now have proper names
+              field_name: item.field_name,
               field_type: item.field_type,
               value: item.value,
               comment: item.comment
