@@ -7,9 +7,18 @@ interface FormattedMessageProps {
 const FormattedMessage: React.FC<FormattedMessageProps> = ({ content }) => {
   // Try to parse the content as JSON
   const tryParseJSON = (text: string) => {
-    if (text.trim().startsWith('{') && text.trim().endsWith('}')) {
+    // Strip away any markdown code block markers
+    let cleanText = text.trim();
+    
+    // Check if the text is wrapped in a code block
+    const codeBlockMatch = cleanText.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/);
+    if (codeBlockMatch) {
+      cleanText = codeBlockMatch[1].trim();
+    }
+    
+    if (cleanText.startsWith('{') && cleanText.endsWith('}')) {
       try {
-        return JSON.parse(text);
+        return JSON.parse(cleanText);
       } catch (e) {
         console.log('Content appears to be JSON but failed to parse, treating as text');
         return null;

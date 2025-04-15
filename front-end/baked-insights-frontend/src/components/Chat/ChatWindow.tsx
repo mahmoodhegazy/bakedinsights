@@ -1177,18 +1177,24 @@ const welcomeMessage: ChatMessage = {
       });
       
       const response = await AIService.getChatResponse([...contextMessages, userMessage], fileContexts);
-      
+
+      // Remove any markdown code block wrappers
+      let cleanResponse = response.trim();
+      const codeBlockMatch = cleanResponse.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/);
+      if (codeBlockMatch) {
+        cleanResponse = codeBlockMatch[1].trim();
+      }
+            
       // Ensure the response is in JSON format
-      let responseContent = response;
-      if (!response.trim().startsWith('{') || !response.trim().endsWith('}')) {
+      let responseContent = cleanResponse;
+      if (!cleanResponse.trim().startsWith('{') || !cleanResponse.trim().endsWith('}')) {
         try {
           // Try to convert plain text to structured JSON
-          responseContent = convertPlainTextToStructuredJSON(response);
+          responseContent = convertPlainTextToStructuredJSON(cleanResponse);
         } catch (error) {
-          console.error('Error converting plain text to JSON:', error);
           // If conversion fails, wrap the text in a simple JSON structure
           responseContent = JSON.stringify({
-            summary: response
+            summary: cleanResponse
           });
         }
       }

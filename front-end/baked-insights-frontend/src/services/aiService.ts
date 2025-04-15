@@ -77,10 +77,16 @@ export class AIService {
                   },
                   "analysis": "Any additional analysis or observations about the data"
                 }
-                
-                Don't include information about where files are stored (S3 bucket, presigned URL, etc.).
-                Focus on the content and analysis that would be useful to the user.
-                If anything is not applicable, omit that entire section from the JSON.`,
+
+                IMPORTANT: 
+                - Do not wrap your JSON response in code blocks or markdown formatting. The response should be a plain JSON object without any markdown syntax.
+                - Don't include information about where files are stored (S3 bucket, presigned URL, etc.).
+                - Focus on the content and analysis that would be useful to the user.
+                - If anything is not applicable, omit that entire section from the JSON.
+                - If the user asks for a specific file, provide the content of that file in the "files_attached" section.
+                - If the user asks for a specific table or checklist, provide the relevant data in the "tables" or "checklists" sections respectively.
+                - If the user asks for a summary or analysis, provide it in the "summary" or "analysis" sections respectively.
+                - If you don't know the answer, say 'I cannot find the answer withing the selected filters' without any further explanation. NEVER HALLUCINATE OR MAKE UP ANSWERS.`,
     };
     
     const messagesWithContext = [systemContext, ...messages];
