@@ -410,13 +410,54 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
             // Find the field for this item
             const field = templateFields.find(f => f.id === item.field_id);
             
+            // Get actual field name from the template field
+            let fieldName = field?.name;
+            
+            // If field name is empty, missing, or generic, provide a descriptive alternative based on data type
+            if (!fieldName || fieldName.trim() === '' || fieldName === 'Field Name') {
+              // Provide specific fallback names based on data type
+              switch (field?.data_type) {
+                case 'sku':
+                  fieldName = 'SKU';
+                  break;
+                case 'lot-number':
+                  fieldName = 'Lot Number';
+                  break;
+                case 'number':
+                  fieldName = 'Quantity';
+                  break;
+                case 'text':
+                  fieldName = 'Description';
+                  break;
+                case 'boolean':
+                  fieldName = 'Status Check';
+                  break;
+                case 'date':
+                  fieldName = 'Date';
+                  break;
+                case 'file':
+                  fieldName = 'Attachment';
+                  break;
+                default:
+                  // Use a more descriptive generic fallback
+                  fieldName = `${field?.data_type || 'Item'} Field`;
+              }
+            }
+            
+            // Format boolean values for better readability
+            let displayValue = item.value;
+            if (field?.data_type === 'boolean') {
+              if (displayValue === true) displayValue = 'Yes';
+              else if (displayValue === false) displayValue = 'No';
+            }
+            
             return {
               id: item.id,
               field_id: item.field_id,
-              field_name: field?.name || 'Unknown Field',
+              field_name: fieldName,
               field_type: field?.data_type || 'unknown',
               order: item.order,
-              value: item.value,
+              value: displayValue,
               comment: item.comment || '',
               completed: item.completed_at ? 'Yes' : 'No',
               completed_at: item.completed_at ? formatDate(item.completed_at) : 'Not completed'
@@ -1101,7 +1142,7 @@ const welcomeMessage: ChatMessage = {
             status: checklist.status,
             completion: checklist.completion,
             items: checklist.items.map(item => ({
-              field_name: item.field_name,
+              field_name: item.field_name, // This will now have proper names
               field_type: item.field_type,
               value: item.value,
               comment: item.comment
