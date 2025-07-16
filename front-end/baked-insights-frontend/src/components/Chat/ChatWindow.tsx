@@ -13,6 +13,7 @@ import { APIChecklist, APIChecklistField, APIChecklistItem, APIChecklistTemplate
 import { FileContextService } from '../../services/fileContextService';
 import { useDataRefreshStore } from '../../hooks/useDataRefreshStore';
 import { TableSelector } from './TableSelector';
+import { ChecklistTemplateSelector } from './ChecklistTemplateSelector';
 
 // Interface for table data
 interface TableData {
@@ -88,6 +89,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [selectedTables, setSelectedTables] = useState<MultiValue<{
+    value: number;
+    label: string;
+  }> | null>(null);
+  const [selectedTemplates, setSelectedTemplates] = useState<MultiValue<{
     value: number;
     label: string;
   }> | null>(null);
@@ -360,8 +365,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   // Filter checklist data based on selected SKU and date
   const filteredChecklistData = React.useMemo(() => {
     if (!checklistDetails) return [];
+    
+    // If specific templates are selected, filter to only checklists from those templates
+    let checklistsToProcess = checklistDetails;
+    if (selectedTemplates && selectedTemplates.length > 0) {
+      const selectedTemplateIds = selectedTemplates.map(t => t.value);
+      checklistsToProcess = checklistDetails.filter(detail => 
+        selectedTemplateIds.includes(detail.checklist.template_id)
+      );
+    }
 
-    return checklistDetails
+    return checklistsToProcess
       .filter(({ checklist, items, templateFields }) => {
         // Date range filter
         if (startDate || endDate) {
@@ -468,11 +482,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
 
         return formattedChecklist;
       });
-  }, [checklistDetails, selectedSKU, selectedLotNumber, startDate, endDate]);
+  }, [checklistDetails, selectedSKU, selectedLotNumber, startDate, endDate, selectedTemplates]);
 
   // Query to fetch context data based on SKU, lot number, date selection, and tables
-  const { data: tableContextData, isLoading: isLoadingTableContext, refetch: refetchTableContext } = useQuery({
-    queryKey: ['tableContextData', selectedSKU?.value, selectedLotNumber?.value, startDate, endDate, selectedTables],
+  const { data: tableContextData, isLoading: isLoadingTableContext, refetch: refetchTableContext } = useQuery<any>({
+    queryKey: ['tableContext', selectedSKU, selectedLotNumber, startDate, endDate, selectedTables, selectedTemplates],
     queryFn: async () => {
       if (!selectedSKU && !selectedLotNumber && !(startDate || endDate) && (!selectedTables || selectedTables.length === 0)) {
         return null;
@@ -644,7 +658,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
       
       return contextData;
     },
-    enabled: !!(selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0))
+    enabled: !!(selectedSKU || selectedLotNumber || startDate || endDate || 
+      (selectedTables && selectedTables.length > 0) ||
+      (selectedTemplates && selectedTemplates.length > 0))
   });
 
   // Prepare combined context data from both tables and checklists
@@ -662,6 +678,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     setStartDate('');
     setEndDate('');
     setSelectedTables(null);
+    setSelectedTemplates(null);
   };
 
   // Manual refresh function for fetching latest data
@@ -678,7 +695,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
     ];
     
     // If context filters are set, also refresh context data
-    if (selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) {
+    if (selectedSKU || selectedLotNumber || startDate || endDate || 
+        (selectedTables && selectedTables.length > 0) || 
+        (selectedTemplates && selectedTemplates.length > 0)) {
       refetchPromises.push(refetchTableContext());
     }
     
@@ -1045,46 +1064,62 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   // Fetch file context when filters change
   useEffect(() => {
     const fetchFileContext = async () => {
-      if (selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) {
-        const result = await FileContextService.getFileContext(
+      // Check if we have any filters that would make context meaningful
+      const hasFilters = selectedSKU || selectedLotNumber || startDate || endDate || 
+                        (selectedTables && selectedTables.length > 0) ||
+                        (selectedTemplates && selectedTemplates.length > 0);
+      
+      if (!hasFilters) {
+        setS3FileContext('');
+        setFileContextCount(0);
+        return;
+      }
+  
+      try {
+        // Extract table IDs if tables are selected
+        const tableIds = selectedTables ? selectedTables.map(t => t.value) : undefined;
+        const templateIds = selectedTemplates ? selectedTemplates.map(t => t.value) : undefined;
+        // Fetch file context from S3        
+        const fileContextResponse = await FileContextService.getFileContext(
           selectedSKU?.value,
           selectedLotNumber?.value,
-          startDate,
-          endDate,
-          selectedTables ? selectedTables.map(t => t.value) : undefined
+          startDate || undefined,
+          endDate || undefined,
+          tableIds,
+          templateIds
         );
         
-        setS3FileContext(result.formatted_context);
-        setFileContextCount(result.file_count);
-      } else {
+        setS3FileContext(fileContextResponse.formatted_context);
+        setFileContextCount(fileContextResponse.file_count);
+      } catch (error) {
+        console.error('Error fetching file context:', error);
         setS3FileContext('');
         setFileContextCount(0);
       }
     };
-    
+  
     fetchFileContext();
-  }, [selectedSKU, selectedLotNumber, startDate, endDate, selectedTables]);
+  }, [selectedSKU, selectedLotNumber, startDate, endDate, selectedTables, selectedTemplates]);
 
   // Initial welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-// In ChatWindow.tsx, modify the welcome message
-const welcomeMessage: ChatMessage = {
-  role: 'assistant',
-  content: `Welcome to Baked Insights!
+      const welcomeMessage: ChatMessage = {
+        role: 'assistant',
+        content: `Welcome to Baked Insights!
 
-        I'm your AI assistant, and I can help you analyze production data and answer questions about your production records and checklists.
-        
-        ### You can do the following:
+              I'm your AI assistant, and I can help you analyze production data and answer questions about your production records and checklists.
+              
+              ### You can do the following:
 
-        - Upload files for analysis
-        - Select a SKU, lot number, or date range above to filter data
-        - Ask questions about production records and checklists
-        - Analyze quality metrics and compliance
-        - Review historical data and trends
-        
-        Otherwise, feel free to ask me any general questions about the app.`
-      };
+              - Upload files for analysis
+              - Select a SKU, lot number, or date range above to filter data
+              - Ask questions about production records and checklists
+              - Analyze quality metrics and compliance
+              - Review historical data and trends
+              
+              Otherwise, feel free to ask me any general questions about the app.`
+            };
       setMessages([welcomeMessage]);
     }
   }, [isOpen]);
@@ -1227,6 +1262,10 @@ const welcomeMessage: ChatMessage = {
       const tableNames = selectedTables.map(t => t.label).join(', ');
       contextFilters.push(`Tables: ${tableNames}`);
     }
+    if (selectedTemplates && selectedTemplates.length > 0) {
+      const templateNames = selectedTemplates.map(t => t.label).join(', ');
+      contextFilters.push(`Templates: ${templateNames}`);
+    }
     if (startDate || endDate) {
       let dateFilter = "Date range: ";
       if (startDate) dateFilter += formatDate(startDate);
@@ -1252,7 +1291,7 @@ const welcomeMessage: ChatMessage = {
         {filterText}Using: {dataSources.join(', ')}
       </div>
     );
-  }, [contextData, selectedSKU, selectedLotNumber, startDate, endDate, selectedTables, uploadedFiles, fileContextCount]);
+  }, [contextData, selectedSKU, selectedLotNumber, startDate, endDate, selectedTables, selectedTemplates, uploadedFiles, fileContextCount]);
 
   // Combine all loading states
   const isDataLoading = isLoadingTemplates || isLoadingChecklists || 
@@ -1343,10 +1382,22 @@ const welcomeMessage: ChatMessage = {
               />
             </div>
           </div>
+
+          <div className="space-y-1 mt-2">
+            <div className="flex flex-col w-full">
+              <label className="px-1 text-xs font-medium text-slate-400 mb-1">Checklist Templates</label>
+              <ChecklistTemplateSelector
+                selectedTemplates={selectedTemplates}
+                onChange={setSelectedTemplates}
+              />
+            </div>
+          </div>
           
           {contextSummary}
           
-          {(selectedSKU || selectedLotNumber || startDate || endDate || (selectedTables && selectedTables.length > 0)) && (
+          {(selectedSKU || selectedLotNumber || startDate || endDate || 
+            (selectedTables && selectedTables.length > 0) || 
+            (selectedTemplates && selectedTemplates.length > 0)) && (
             <div className="flex justify-end mt-2">
               <button
                 onClick={resetFilters}

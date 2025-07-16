@@ -464,7 +464,8 @@ class ChecklistService:
         checklist = Checklist.query.get(checklist_id)
         if not checklist:
             raise ValueError("Checklist not found")
-
+        if checklist.submitted:
+            raise Exception(f"Cannot delete a submitted checklist")
         try:
             for item in checklist.items:
                 db.session.delete(item)

@@ -10,7 +10,7 @@ from flask_jwt_extended import jwt_required
 from app.services.file_service import FileProcessingService
 from app.services.file_context_service import FileContextService
 from app.models.table import TableData, Table
-from app.models.checklist import ChecklistItem
+from app.models.checklist import Checklist, ChecklistItem
 
 file_bp = Blueprint('files', __name__)
 
@@ -102,6 +102,7 @@ def get_file_context_for_ai():
         start_date: Start date for date range
         end_date: End date for date range
         table_ids: Table IDs to filter by (can be multiple)
+        checklist_ids: Checklist IDs to filter by (can be multiple)
         
     Returns:
         Structured file context information for AI
@@ -117,10 +118,14 @@ def get_file_context_for_ai():
         table_ids = request.args.getlist('table_ids')
         table_ids = [int(id) for id in table_ids] if table_ids else []
         
+        # Get checklist IDs (can be multiple)
+        template_ids = request.args.getlist('template_ids')
+        template_ids = [int(id) for id in template_ids] if template_ids else []
+        
         # Must have at least one filter
-        if not any([sku, lot_number, start_date, end_date, table_ids]):
+        if not any([sku, lot_number, start_date, end_date, table_ids, template_ids]):
             return jsonify({
-                "message": "At least one filter (SKU, LOT number, Date Range, Tables) must be provided"
+                "message": "At least one filter (SKU, LOT number, Date Range, Tables, Templates) must be provided"
             }), 400
             
         # Find matching table data with file attachments
@@ -189,6 +194,19 @@ def get_file_context_for_ai():
         checklist_items_query = ChecklistItem.query.filter(ChecklistItem.value_fpath.isnot(None))
         
         # Apply filters to checklist items
+        if template_ids:
+            # Find all checklists that belong to the specified templates
+            checklists_for_templates = Checklist.query.filter(Checklist.template_id.in_(template_ids)).all()
+            
+            if not checklists_for_templates:
+                # No checklists found for these templates, but that's okay - just empty results
+                checklist_items_query = checklist_items_query.filter(False)
+            else:
+                # Get all checklist IDs from the matching checklists
+                checklist_ids = [checklist.id for checklist in checklists_for_templates]
+                # Filter checklist items to only those from these checklists
+                checklist_items_query = checklist_items_query.filter(ChecklistItem.checklist_id.in_(checklist_ids))
+
         if sku:
             checklist_items_query = checklist_items_query.filter_by(value_sku=sku)
             

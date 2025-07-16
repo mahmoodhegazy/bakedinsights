@@ -7,13 +7,14 @@ export interface FileContextResponse {
 
 export class FileContextService {
   /**
-   * Get file context from backend based on SKU, Lot Number, Date Range, or Tables
+   * Get file context from backend based on SKU, Lot Number, Date Range, Tables, or Checklist Templates
    * 
    * @param sku Optional SKU to filter by
    * @param lotNumber Optional lot number to filter by
    * @param startDate Optional start date to filter by
    * @param endDate Optional end date to filter by
    * @param tableIds Optional array of table IDs to filter by
+   * @param templateIds Optional array of checklist template IDs to filter by
    * @returns Promise with formatted file context
    */
   static async getFileContext(
@@ -21,7 +22,8 @@ export class FileContextService {
     lotNumber?: string, 
     startDate?: string,
     endDate?: string,
-    tableIds?: number[]
+    tableIds?: number[],
+    templateIds?: number[]
   ): Promise<FileContextResponse> {
     try {
       // Build query parameters
@@ -34,6 +36,11 @@ export class FileContextService {
       // Add table IDs if provided
       if (tableIds && tableIds.length > 0) {
         tableIds.forEach(id => params.append('table_ids', id.toString()));
+      }
+      
+      // Add template IDs if provided (changed from checklist_ids to template_ids)
+      if (templateIds && templateIds.length > 0) {
+        templateIds.forEach(id => params.append('template_ids', id.toString()));
       }
       
       // Make the request
