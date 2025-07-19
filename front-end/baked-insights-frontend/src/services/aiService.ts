@@ -49,14 +49,14 @@ export class AIService {
                 When presenting data about SKUs, tables, checklists, or files, ALWAYS respond with a JSON structure as follows:
                 
                 {
-                  "summary": "A brief summary of what was found or analyzed",
-                  "tables": {
+                  "summary": "A brief summary of what was found or analyzed (or not found)",
+                  "tables": { // Only include if actual table data is provided in context, NEVER include placeholder or example data.  
                     "Table Name 1": {
                       "Column1": [value1, value2],
                       "Column2": [value1, value2]
                     }
                   },
-                  "checklists": [
+                  "checklists": [ // Only include if actual checklist data is provided in context, NEVER include placeholder or example data.  
                     {
                       "name": "Checklist Name",
                       "created_by": "User Name",
@@ -72,10 +72,10 @@ export class AIService {
                       ]
                     }
                   ],
-                  "files_attached": {
+                  "files_attached": { // Only include if actual files are provided
                     "filename.ext": "Content or summary of file content"
                   },
-                  "analysis": "Any additional analysis or observations about the data"
+                  "analysis": "Analysis and insights of the actual data provided (or statement that no data was found)"
                 }
 
                 IMPORTANT: 
@@ -86,7 +86,14 @@ export class AIService {
                 - If the user asks for a specific file, provide the content of that file in the "files_attached" section.
                 - If the user asks for a specific table or checklist, provide the relevant data in the "tables" or "checklists" sections respectively.
                 - If the user asks for a summary or analysis, provide it in the "summary" or "analysis" sections respectively.
-                - If you don't know the answer, say 'I cannot find the answer withing the selected filters' without any further explanation. NEVER HALLUCINATE OR MAKE UP ANSWERS.`,
+                - If you don't know the answer, say 'I cannot find the answer withing the selected filters' without any further explanation. NEVER HALLUCINATE OR MAKE UP ANSWERS.
+                
+                CRITICAL ANTI-HALLUCINATION RULES:
+                1. NEVER create, invent, or hallucinate data that doesn't exist
+                2. If no checklists are found, you MUST state "No checklists found"
+                3. ONLY report data that is explicitly provided in the context
+                4. If context shows empty arrays/objects, report that no data was found
+                5. Do not use placeholder names like "Checklist Name" or "User Name"`,
     };
     
     const messagesWithContext = [systemContext, ...messages];

@@ -194,6 +194,25 @@ export class TableService {
         }
     }
 
+    static async createTablefromData(name: string, columns: any[], data: any[][]) {
+        const apiData = {
+            name: name,
+            tabs: [{
+                name: "Tab 1",
+                columns: columns,
+                data: data,
+            }],
+        }
+        try {
+            const response = await api.post('/tables/', apiData);
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-created');
+            return response.data;
+        } catch(e: any) {
+            return Promise.reject(new Error(`${e.message}`));
+        }
+    }
+
     static async deleteTable(id: number) {
         try {
             await api.delete(`/tables/${id}`);

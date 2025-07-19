@@ -264,22 +264,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
           const checklistsResponse = await api.get('/checklists/');
           const checklists = checklistsResponse.data;
           
-          // For each checklist, get all its items
-          for (const checklist of checklists) {
-            try {
-              const itemsResponse = await api.get(`/checklists/${checklist.id}`);
-              const items = itemsResponse.data;
-              
-              // Use array reduce to filter and extract SKU items in one pass
-              items.reduce((set: Set<string>, item: any) => {
-                if (item.data_type === 'sku' && item.value && typeof item.value === 'string') {
-                  set.add(item.value);
-                }
-                return set;
-              }, skuSet);
+          // Add guard check to ensure checklists is a valid array
+          if (Array.isArray(checklists)) {
+            // For each checklist, get all its items
+            for (const checklist of checklists) {
+              try {
+                const itemsResponse = await api.get(`/checklists/${checklist.id}`);
+                const items = itemsResponse.data;
+                
+                // Use array reduce to filter and extract SKU items in one pass
+                items.reduce((set: Set<string>, item: any) => {
+                  if (item.data_type === 'sku' && item.value && typeof item.value === 'string') {
+                    set.add(item.value);
+                  }
+                  return set;
+                }, skuSet);
 
-            } catch (err) {
-              console.error(`Error fetching items for checklist ${checklist.id}:`, err);
+              } catch (err) {
+                console.error(`Error fetching items for checklist ${checklist.id}:`, err);
+              }
             }
           }
         } catch (error) {
@@ -810,6 +813,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         console.log('Text appears to be JSON format but parsing failed, converting to proper JSON');
       }
     }
+
+    // Check if the text explicitly mentions "no data" or similar
+    const noDataIndicators = [
+      /no checklists? found/i,
+      /no data found/i, 
+      /no production records/i,
+      /no tables? found/i,
+      /cannot find/i,
+      /not available/i
+    ];
+  
+    const hasNoDataIndicator = noDataIndicators.some(pattern => pattern.test(text));
+
+    // If text indicates no data, create a clear JSON response
+    if (hasNoDataIndicator) {
+      return JSON.stringify({
+        summary: text.trim(),
+        analysis: "No data was found matching the specified filters."
+      });
+    }
     
     // Extract sections from the text
     const sections: any = {
@@ -1170,25 +1193,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
         
         // Format context data as structured data
         const formattedContextData = {
-          tables: contextData.tables,
-          checklists: contextData.checklists.map(checklist => ({
-            name: checklist.name,
-            created_by: checklist.created_by,
-            created_at: checklist.created_at,
-            status: checklist.status,
-            completion: checklist.completion,
-            items: checklist.items.map(item => ({
-              field_name: item.field_name,
-              field_type: item.field_type,
-              value: item.value,
-              comment: item.comment
-            }))
-          }))
+          tables: contextData?.tables || {},
+          checklists: contextData?.checklists || []
         };
-
+        
+        const tableCount = Object.keys(formattedContextData.tables).length;
+        const checklistCount = formattedContextData.checklists.length;
+        
+        let contextStatusMessage = "";
+        if (contextInfo.length > 0) {
+          contextStatusMessage = `Filters applied: ${contextInfo.join(' and ')}. `;
+        }
+        
+        if (tableCount === 0 && checklistCount === 0) {
+          contextStatusMessage += "IMPORTANT: No tables or checklists found matching these filters. You must report that no data was found - do not make up or hallucinate any data.";
+        } else {
+          contextStatusMessage += `Found ${tableCount} table(s) and ${checklistCount} checklist(s).`;
+        }
+        
         const contextMessage: ChatMessage = {
           role: 'system',
-          content: `Current context - Data for ${contextInfo.join(' and ')}:\n${JSON.stringify(formattedContextData, null, 2)}\n\nRemember to respond with structured JSON as specified in the system instructions.`
+          content: `${contextStatusMessage}\n\nActual data:\n${JSON.stringify(formattedContextData, null, 2)}`
         };
         contextMessages.push(contextMessage);
       }

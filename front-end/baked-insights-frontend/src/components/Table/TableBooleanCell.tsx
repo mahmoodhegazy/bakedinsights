@@ -1,11 +1,12 @@
 interface TableBooleanCellProps {
-    value: boolean,
+    value: boolean | null | undefined,
     onEdit: (e: any) => void,
     edited: boolean,
 };
 
-
 export const TableBooleanCell : React.FC<TableBooleanCellProps> = ({ value, onEdit, edited}) => {
+    // Render a checkbox input within a table cell
+    // The checkbox is checked if value is true, unchecked if false, null, or undefined    
     return (
         <td className="min-w-24 h-7">
             <div
@@ -14,7 +15,7 @@ export const TableBooleanCell : React.FC<TableBooleanCellProps> = ({ value, onEd
                 <input
                     className="outline-none"
                     type="checkbox"
-                    checked={value}
+                    checked={Boolean(value)} // Convert null/undefined to false (unchecked state)
                     onChange={(e: any) => {onEdit(e.target.checked)}}
                 />
             </div>

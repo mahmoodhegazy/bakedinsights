@@ -63,10 +63,21 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ content }) => {
         return null;
       }
 
+    // Validate that checklists contain real data, not placeholders
+    const validChecklists = data.checklists.filter((checklist: any) => 
+      checklist.name && 
+      checklist.name !== "Checklist Name" && 
+      checklist.name !== "Unknown Checklist"
+    );
+
+    if (validChecklists.length === 0) {
+      return null;
+    }
+
       return (
         <div className="mb-4">
           <h3 className="font-bold text-gray-800 mb-2">Checklists</h3>
-          {data.checklists.map((checklist: any, index: number) => (
+          {validChecklists.map((checklist: any, index: number) => (
             <div key={index} className="mb-3 bg-gray-50 p-3 rounded-lg">
               <h4 className="font-semibold text-gray-700">{checklist.name}</h4>
               <div className="pl-4">
