@@ -152,6 +152,14 @@ export const useTablesManager = () => {
         },
     });
 
+    const createTableFromDataMutation = useMutation({
+        mutationFn: ({name, columns, data} : {name: string, columns: any[], data: any[][]}) => TableService.createTablefromData(name, columns, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['assignedTablesData'] });
+            toast.success("Succesfully created table.");
+        },
+    });
+
     const deleteTableMutation = useMutation({
         mutationFn: (id: number) => TableService.deleteTable(id),
         onSuccess: () => {
@@ -169,6 +177,7 @@ export const useTablesManager = () => {
 
         // Mutations
         createTable: createTableMutation.mutate,
+        createTableFromData: createTableFromDataMutation.mutate,
         deleteTable: deleteTableMutation.mutate,
 
     };

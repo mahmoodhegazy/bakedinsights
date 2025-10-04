@@ -100,7 +100,9 @@ export const UserAdminConsole: React.FC = () => {
                         updateRow={updateRow}
                         deleteRow={deleteRow}
                         newColumnEnabled={false}
-                        addButtonLabel="+ Add User"/>
+                        addButtonLabel="+ Add User"
+                        deleteRowLabel="Deactivate User"
+                    />
         }
         </>
     );

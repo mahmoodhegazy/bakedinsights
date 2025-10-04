@@ -32,6 +32,7 @@ interface TableProps {
     ) => void,
     newColumnEnabled: boolean,
     addButtonLabel: string,
+    deleteRowLabel?: string,
 };
 
 export const Table : React.FC<TableProps> = ({
@@ -42,6 +43,7 @@ export const Table : React.FC<TableProps> = ({
     deleteRow,
     newColumnEnabled,
     addButtonLabel="+ Add Record",
+    deleteRowLabel="Delete record."
 }) => {
     const getDefaultCell = (header: TableCell, newRowIndex: number) => {
         switch (header.dataType) {
@@ -175,6 +177,7 @@ export const Table : React.FC<TableProps> = ({
             onSaveHandler={saveCellHandler}
             rowData={rowData}
             newColumnEnabled={newColumnEnabled}
+            deleteRowLabel={deleteRowLabel}
         />
     );
 

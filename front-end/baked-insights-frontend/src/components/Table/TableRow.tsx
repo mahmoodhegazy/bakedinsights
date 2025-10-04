@@ -17,10 +17,20 @@ interface TableRowProps {
     onSaveHandler: (rowIndex: number) => (() => void),
     rowData: TableCell[],
     newColumnEnabled: boolean,
+    deleteRowLabel: string,
 };
 
 
-export const TableRow : React.FC<TableRowProps> = ({ rowIndex, onEditHandler, onDeleteHandler, onUndoHandler, onSaveHandler, rowData, newColumnEnabled }) => {
+export const TableRow : React.FC<TableRowProps> = ({ 
+    rowIndex,
+    onEditHandler,
+    onDeleteHandler,
+    onUndoHandler,
+    onSaveHandler,
+    rowData,
+    newColumnEnabled,
+    deleteRowLabel="Delete record." 
+}) => {
 
     const [confirmDeleteInput, setConfirmDeleteInput] = useState<string>("");
 
@@ -36,7 +46,7 @@ export const TableRow : React.FC<TableRowProps> = ({ rowIndex, onEditHandler, on
         <button
             {...(true && {
                     "data-tooltip-id": "tablerow-delete-tooltip",
-                    "data-tooltip-content": "Delete record.",
+                    "data-tooltip-content": `${deleteRowLabel}`,
                     "data-tooltip-place": "top",
                 })}
             type="button"

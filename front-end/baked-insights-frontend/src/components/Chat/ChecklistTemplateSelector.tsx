@@ -28,7 +28,9 @@ export const ChecklistTemplateSelector: React.FC<ChecklistTemplateSelectorProps>
       try {
         setIsLoading(true);
         const templatesData = await ChecklistTemplateService.getAllTemplates();
-        setTemplates(templatesData);
+        if (!("message" in templatesData)) {
+            setTemplates(templatesData);
+        }
       } catch (error) {
         console.error('Error fetching checklist templates:', error);
       } finally {

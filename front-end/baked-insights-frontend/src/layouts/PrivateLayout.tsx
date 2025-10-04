@@ -3,7 +3,8 @@ import { useAuth } from './../hooks/useAuth';
 import { Sidebar } from '../components/Sidebar';
 
 export const PrivateLayout = ({ orgName = "" }) => {
-    const { token } = useAuth();
+    const { getToken } = useAuth();
+    const token = getToken();
 
     if (!token) {
         return <Navigate to='/login' replace />;

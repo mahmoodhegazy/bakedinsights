@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
 
-export const Login: React.FC = () => {
+export const LoginOrg: React.FC = () => {
     const navigate = useNavigate();
     const { setAuth } = useAuth();
-    const { tenant_id } = useParams<{ tenant_id: string }>();
 
+    const [tenant, setTenant] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const formValues = { username, password };
+        const formValues = { tenant, username, password };
         console.log(formValues);
 
         // Validate the form
@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
 
         // Post request to API
         try {
-            const { data } = await api.post(`/auth/login/${tenant_id}`, formValues);
+            const { data } = await api.post(`/auth/login/${formValues.tenant}`, formValues);
             setAuth(data.access_token);
             toast.success('Login succesful');
             navigate('/tables');
@@ -49,11 +49,22 @@ export const Login: React.FC = () => {
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="rounded-lg shadow-md -space-y-px">
                         <div>
+                            <label htmlFor="tenant_id" className="sr-only">Tenant ID</label>
+                            <input
+                                id="tenant_id"
+                                type="number"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                placeholder="Organization Code"
+                                autoComplete="off"
+                                onChange={(e) => setTenant(e.target.value)}
+                            />
+                        </div>
+                        <div>
                             <label htmlFor="username" className="sr-only">Username</label>
                             <input
                                 id="username"
                                 type="text"
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                                 placeholder="Username"
                                 autoComplete="off"
                                 onChange={(e) => setUsername(e.target.value)}
@@ -79,7 +90,7 @@ export const Login: React.FC = () => {
                     </div>
                 </form>
                 <div className="m-0 p-2 font-medium text-sky-800 hover:text-sky-600 text-sm">
-                    <Link to={`/forgot-password/${tenant_id}`}>Forgot password?</Link>
+                    <Link to={`/forgot-password/${tenant}`}>Forgot password?</Link>
                 </div>
             </div>
         </div>

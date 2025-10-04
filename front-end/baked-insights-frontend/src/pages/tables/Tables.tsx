@@ -23,6 +23,10 @@ export const Tables = () => {
         createTable("New Table");
     };
 
+    const uploadCSV = () => {
+        navigate(`/tables/csv`);
+    };
+
     const getBody = () => {
         if (isLoadingAssignedTables) {
             return (
@@ -78,7 +82,7 @@ export const Tables = () => {
         <div className="mb-4 font-bold text-slate-500 flex-col">
             <h1>My Tables</h1>
         </div>
-        <div className="flex items-center justify-between flex-wrap flex-row gap-2 pb-4">
+        <div className="flex items-center flex-wrap flex-row gap-2 pb-4">
             <button
                 className={`text-gray-500 bg-white border-gray-300 inline-flex items-center border hover:bg-gray-100 font-medium rounded-lg text-sm px-3 py-1.5`}
                 onClick={newTable}
@@ -86,8 +90,15 @@ export const Tables = () => {
                 <span className="sr-only">Add table button</span>
                 + New Table
             </button>
+            <button
+                className={`text-gray-500 bg-white border-gray-300 inline-flex items-center border hover:bg-gray-100 font-medium rounded-lg text-sm px-3 py-1.5`}
+                onClick={uploadCSV}
+                type="button">
+                <span className="sr-only">Upload CSV button</span>
+                + Upload CSV
+            </button>
             <label htmlFor="table-search" className="sr-only">Search</label>
-            <div className="relative">
+            <div className="relative ml-auto">
                 <div className="absolute inset-y-0 rtl:inset-r-0 start-0 flex items-center ps-3 pointer-events-none">
                     <svg className="w-4 h-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
                         <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z"/>
