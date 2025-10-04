@@ -5,10 +5,10 @@ All rights reserved.
 import base64
 import os
 import time
+from datetime import timedelta
 from typing import Dict, List, Optional
 
 import pyotp
-import timedelta
 from app import mail
 from app.models.user import User
 from flask import g, session
@@ -39,7 +39,7 @@ class AuthService:
                     'tenant_id': str(user.tenant_id),
                     'role': str(user.role)
                 },
-                expires_delta=timedelta.Timedelta(hours=1)
+                expires_delta=timedelta(hours=1)
             )
             return {'access_token': access_token, 'role': user.role}
         return None
