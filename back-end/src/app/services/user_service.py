@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from app import db
 from app.models.user import User
 from app.types import VALID_ROLES
+from flask import g
 
 # from validate_email import validate_email
 
@@ -61,11 +62,11 @@ class UserService:
         #     raise ValueError("Invalid email")
 
         # Check for existing user
-        if User.query.filter_by(username=data['username']).first():
+        if User.query.filter_by(username=data['username'], tenant_id=g.tenant_id).first():
             raise ValueError("Username already exists")
-        if User.query.filter_by(email=data['email']).first():
+        if User.query.filter_by(email=data['email'], tenant_id=g.tenant_id).first():
             raise ValueError("Email already exists")
-        if User.query.filter_by(employee_id=data['employee_id']).first():
+        if User.query.filter_by(employee_id=data['employee_id'], tenant_id=g.tenant_id).first():
             raise ValueError("Employee ID already exists")
 
         # Create new user
@@ -75,7 +76,8 @@ class UserService:
             email=data['email'],
             phone=data['phone'],
             employee_id=data['employee_id'],
-            role=data['role']
+            role=data['role'],
+            tenant_id=g.tenant_id,
         )
         user.set_password(data['password'])
 
@@ -98,7 +100,7 @@ class UserService:
         Returns:
             List of user dictionaries with filtered information based on requester's role
         """
-        return User.query.all()
+        return User.query.filter_by(tenant_id=g.tenant_id).all()
 
     @staticmethod
     def get_user_by_id(user_id: int) -> Optional[User]:
@@ -111,7 +113,33 @@ class UserService:
         Returns:
             User instance if found, None otherwise
         """
-        return User.query.get(user_id)
+        return User.query.filter_by(id=user_id, tenant_id=g.tenant_id).first()
+
+    @staticmethod
+    def get_user_by_username(username: str) -> Optional[User]:
+        """
+        Get user by email
+
+        Args:
+            user_id: ID of user to retrieve
+
+        Returns:
+            User instance if found, None otherwise
+        """
+        return User.query.filter_by(username=username, tenant_id=g.tenant_id).first()
+
+    @staticmethod
+    def get_user_by_email(email: str) -> Optional[User]:
+        """
+        Get user by email
+
+        Args:
+            user_id: ID of user to retrieve
+
+        Returns:
+            User instance if found, None otherwise
+        """
+        return User.query.filter_by(email=email, tenant_id=g.tenant_id).first()
 
     @staticmethod
     def update_user(user_id: int, data: Dict) -> Optional[User]:
@@ -128,7 +156,7 @@ class UserService:
         Raises:
             ValueError: If update data is invalid
         """
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id=user_id, tenant_id=g.tenant_id).first()
         if not user:
             return None
 
@@ -137,13 +165,13 @@ class UserService:
             user.name = data['name']
 
         if 'username' in data:
-            existing_username = User.query.filter_by(email=data['username']).first()
+            existing_username = User.query.filter_by(email=data['username'], tenant_id=g.tenant_id).first()
             if existing_username and existing_username.id != user_id:
                 raise ValueError("Username already exists")
             user.username = data['username']
 
         if 'email' in data:
-            existing_email = User.query.filter_by(email=data['email']).first()
+            existing_email = User.query.filter_by(email=data['email'], tenant_id=g.tenant_id).first()
             if existing_email and existing_email.id != user_id:
                 raise ValueError("Email already exists")
             user.email = data['email']
@@ -187,7 +215,7 @@ class UserService:
         Returns:
             Boolean indicating if deletion was successful
         """
-        user = User.query.get(user_id)
+        user = User.query.filter_by(id=user_id, tenant_id=g.tenant_id).first()
         if not user:
             return False
 

@@ -3,6 +3,7 @@ Copyright (c) BakedInsights, Inc. and affiliates.
 All rights reserved.
 """
 
+from app.hooks import setup_tenant_context
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 from app.types import ADMIN_ROLES, SUPER_ADMIN_ROLES, VALID_ROLES
@@ -10,6 +11,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
 user_bp = Blueprint('users', __name__)
+user_bp.before_request(setup_tenant_context)
 
 
 @user_bp.route('/', methods=['POST'])

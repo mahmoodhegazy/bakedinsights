@@ -3,6 +3,7 @@ Copyright (c) BakedInsights, Inc. and affiliates.
 All rights reserved.
 """
 
+from app.hooks import setup_tenant_context
 from app.services.auth_service import AuthService
 from app.services.checklist_service import ChecklistService
 from app.services.user_service import UserService
@@ -11,6 +12,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 checklist_bp = Blueprint('checklists', __name__)
+checklist_bp.before_request(setup_tenant_context)
 
 
 @checklist_bp.route('/templates', methods=['POST'])
@@ -116,7 +118,7 @@ def get_all_templates():
     try:
         templates = ChecklistService.get_all_templates(user_id=get_jwt_identity())
         if not templates:
-            return jsonify({"message": "No templats found"}), 200
+            return jsonify({"message": "No templates found"}), 200
 
         for template in templates:
             template["created_by_username"] = UserService.get_user_by_id(user_id=template["created_by"]).username
@@ -419,7 +421,6 @@ def share_template(template_id):
             "shares": len(shares)
         }), 201
     except Exception as e:
-        print(e)
         return jsonify({"message": "Error sharing template", "error": str(e)}), 500
 
 

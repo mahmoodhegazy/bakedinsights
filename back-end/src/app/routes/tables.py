@@ -3,12 +3,14 @@ Copyright (c) BakedInsights, Inc. and affiliates.
 All rights reserved.
 """
 
+from app.hooks import setup_tenant_context
 from app.services.table_service import TableService
 from app.services.user_service import UserService
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 table_bp = Blueprint('tables', __name__)
+table_bp.before_request(setup_tenant_context)
 
 
 @table_bp.route('/assigned', methods=['GET'])
@@ -143,7 +145,7 @@ def update_table_column():
             "updates": updated_column.id,
         }), 201
     except Exception as e:
-        return jsonify({"message": "Error updating table data", "error": str(e)}), 500
+        return jsonify({"message": f"Error updating table data: invalid operation.", "error": str(e)}), 500
 
 
 @table_bp.route('/tabs/<int:tab_id>/data', methods=['PUT', 'POST'])
@@ -211,13 +213,13 @@ def create_table():
                         "data_type": string,
                     }
                 ],
+                "data": Optional[row [column]]
             }
         ]
     }
     """
 
     try:
-
         table = TableService.create_table(
             data=request.get_json(),
             creator_id=get_jwt_identity()

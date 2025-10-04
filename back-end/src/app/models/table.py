@@ -7,9 +7,10 @@ All rights reserved.
 from datetime import datetime
 
 from app import db
+from app.models.tenant import TenantScopedModel
 
 
-class Table(db.Model):
+class Table(TenantScopedModel):
     """
     Table Model - Represents production record tables created by office staff
 
@@ -25,7 +26,7 @@ class Table(db.Model):
     shares = db.relationship('TableShare', backref='table', lazy=True)
 
 
-class TableTab(db.Model):
+class TableTab(TenantScopedModel):
     """
     TableTab Model - Represents different tabs within a table
 
@@ -41,7 +42,7 @@ class TableTab(db.Model):
     table_data = db.relationship('TableData', backref='table_tab', lazy=True)
 
 
-class TableColumn(db.Model):
+class TableColumn(TenantScopedModel):
     """
     TableColumn Model - Defines columns in production record tables
 
@@ -55,7 +56,7 @@ class TableColumn(db.Model):
 
     table_data = db.relationship('TableData', backref='table_column', lazy=True)
 
-class TableRecord(db.Model):
+class TableRecord(TenantScopedModel):
     """
     TableRecord Model - Defines a single row (aka record) in a table
 
@@ -67,7 +68,7 @@ class TableRecord(db.Model):
 
     table_data = db.relationship('TableData', backref='table_record', lazy=True)
 
-class TableData(db.Model):
+class TableData(TenantScopedModel):
     """
     TableData Model - Stores the actual data within tables
 
@@ -90,7 +91,7 @@ class TableData(db.Model):
     value_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 
-class TableShare(db.Model):
+class TableShare(TenantScopedModel):
     """
     TableShare Model - Tracks table sharing between users
 

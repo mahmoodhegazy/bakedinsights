@@ -10,6 +10,7 @@ from app.models.checklist import (Checklist, ChecklistAssignment,
                                   ChecklistField, ChecklistItem,
                                   ChecklistTemplate)
 from app.utils import FileManager
+from flask import g
 from werkzeug.utils import secure_filename
 
 
@@ -28,7 +29,7 @@ class ChecklistService:
         Returns:
             Boolean indicated whether user has right to access item_id
         """
-        item = ChecklistItem.query.get(item_id)
+        item = ChecklistItem.query.filter_by(id=item_id, tenant_id=g.tenant_id).first()
         if item:
             return ChecklistService.validate_user_for_checklist(user_id, item.checklist_id)
         return False
@@ -46,7 +47,7 @@ class ChecklistService:
         Returns:
             Boolean indicated whether user has right to access template_id
         """
-        field = ChecklistField.query.get(field_id)
+        field = ChecklistField.query.filter_by(id=field_id, tenant_id=g.tenant_id).first()
         if field:
             return ChecklistService.validate_user_for_template(user_id, field.template_id)
         return False
@@ -64,7 +65,7 @@ class ChecklistService:
         Returns:
             Boolean indicated whether user has right to access template_id
         """
-        checklist = Checklist.query.get(checklist_id)
+        checklist = Checklist.query.filter_by(id=checklist_id, tenant_id=g.tenant_id).first()
         if checklist:
             return ChecklistService.validate_user_for_template(user_id, checklist.template.id)
         return False
@@ -81,7 +82,7 @@ class ChecklistService:
         Returns:
             Boolean indicated whether user has right to access template_id
         """
-        assignment = ChecklistAssignment.query.filter_by(user_id=user_id, template_id=template_id).first()
+        assignment = ChecklistAssignment.query.filter_by(user_id=user_id, template_id=template_id, tenant_id=g.tenant_id).first()
         if not assignment:
             return False
         return True
@@ -107,11 +108,13 @@ class ChecklistService:
         template = ChecklistTemplate(
             title=data["title"],
             description=data.get("description", ""),
-            created_by=creator_id
+            created_by=creator_id,
+            tenant_id=g.tenant_id,
         )
         assignment = ChecklistAssignment(
             template_id=template.id,
             user_id=creator_id,
+            tenant_id=g.tenant_id,
         )
         template.assignments.append(assignment)
 
@@ -137,7 +140,7 @@ class ChecklistService:
         Raises:
             ValueError: If required fields missing or invalid
         """
-        template = ChecklistTemplate.query.get(template_id)
+        template = ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first()
         if not template:
             raise ValueError("Template not found")
 
@@ -175,10 +178,10 @@ class ChecklistService:
         Raises:
             ValueError: If required fields missing or invalid
         """
-        field = ChecklistField.query.get(field_id)
+        field = ChecklistField.query.filter_by(id=field_id, tenant_id=g.tenant_id).first()
         if not field:
             raise ValueError("Field not found")
-        items = ChecklistItem.query.filter_by(field_id=field.id).all()
+        items = ChecklistItem.query.filter_by(field_id=field.id, tenant_id=g.tenant_id).all()
 
         try:
             for item in items:
@@ -208,7 +211,7 @@ class ChecklistService:
             ValueError: If required fields missing or invalid
         """
         template_id = data["id"]
-        template = ChecklistTemplate.query.get(template_id)
+        template = ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first()
         if not template:
             raise ValueError("Template not found")
 
@@ -243,10 +246,11 @@ class ChecklistService:
                         data_type=data_type,
                         complete_by_time=complete_by_time,
                         order=order,
+                        tenant_id=g.tenant_id,
                     )
                     template.fields.append(field)
                 else:
-                    field = ChecklistField.query.get(field_id)
+                    field = ChecklistField.query.filter_by(id=field_id, tenant_id=g.tenant_id).first()
                     if not field:
                         raise ValueError("Invalid checklist field")
                     field.name = name
@@ -267,7 +271,7 @@ class ChecklistService:
     @staticmethod
     def get_all_templates(user_id: int) -> List[Dict]:
         """Get checklist template by ID"""
-        assignments = ChecklistAssignment.query.filter_by(user_id=user_id).all()
+        assignments = ChecklistAssignment.query.filter_by(user_id=user_id, tenant_id=g.tenant_id).all()
         results = []
         for assignment in assignments:
             template = assignment.template
@@ -284,7 +288,7 @@ class ChecklistService:
     @staticmethod
     def get_template(template_id: int) -> Dict:
         """Get checklist template by ID"""
-        template = ChecklistTemplate.query.get(template_id)
+        template = ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first()
         has_checklists = len(template.checklists) > 0
         fields = [{
             "id": field.id,
@@ -320,19 +324,21 @@ class ChecklistService:
         Raises:
             ValueError: If template not found
         """
-        template = ChecklistTemplate.query.get(template_id)
+        template = ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first()
         if not template:
             raise ValueError("Template not found")
 
         checklist = Checklist(
             template_id=template_id,
-            created_by=creator_id
+            created_by=creator_id,
+            tenant_id=g.tenant_id,
         )
         fields = template.fields
         for field in fields:
             item = ChecklistItem(
                 field_id=field.id,
                 checklist_id=checklist.id,
+                tenant_id=g.tenant_id,
             )
             checklist.items.append(item)
 
@@ -358,7 +364,7 @@ class ChecklistService:
         Returns:
             List of dictionaries containing checklist info
         """
-        assignments = ChecklistAssignment.query.filter_by(user_id=user_id).all()
+        assignments = ChecklistAssignment.query.filter_by(user_id=user_id, tenant_id=g.tenant_id).all()
         results = []
         for assignment in assignments:
             template = assignment.template
@@ -367,7 +373,7 @@ class ChecklistService:
             for checklist in checklists:
                 num_completed = 0
                 for item in checklist.items:
-                    field = ChecklistField.query.get(item.field_id)
+                    field = ChecklistField.query.filter_by(id=item.field_id, tenant_id=g.tenant_id).first()
                     data_type = field.data_type
                     value = None
                     if data_type == "text":
@@ -408,11 +414,11 @@ class ChecklistService:
         Returns:
             Dictionary containing checklist info
         """
-        checklist = Checklist.query.get(checklist_id)
+        checklist = Checklist.query.filter_by(id=checklist_id, tenant_id=g.tenant_id).first()
         items = checklist.items
         results = []
         for item in items:
-            field = ChecklistField.query.get(item.field_id)
+            field = ChecklistField.query.filter_by(id=item.field_id, tenant_id=g.tenant_id).first()
             data_type = field.data_type
 
             value = None
@@ -461,7 +467,7 @@ class ChecklistService:
         Raises:
             ValueError: If required fields missing or invalid
         """
-        checklist = Checklist.query.get(checklist_id)
+        checklist = Checklist.query.filter_by(id=checklist_id, tenant_id=g.tenant_id)
         if not checklist:
             raise ValueError("Checklist not found")
         if checklist.submitted:
@@ -494,11 +500,11 @@ class ChecklistService:
             ValueError: If required fields missing or invalid
         """
         item_id = data["id"]
-        item = ChecklistItem.query.get(item_id)
+        item = ChecklistItem.query.filter_by(id=item_id, tenant_id=g.tenant_id).first()
         if not item:
             raise ValueError("Item not found")
 
-        field = ChecklistField.query.get(item.field_id)
+        field = ChecklistField.query.filter_by(id=item.field_id, tenant_id=g.tenant_id).first()
         data_type = field.data_type
         (
             value_text,
@@ -561,7 +567,7 @@ class ChecklistService:
         Raises:
             ValueError: If required fields missing or invalid
         """
-        checklist = Checklist.query.get(checklist_id)
+        checklist = Checklist.query.filter_by(id=checklist_id, tenant_id=g.tenant_id).first()
         if not checklist:
             raise ValueError("Checklist not found")
 
@@ -589,7 +595,7 @@ class ChecklistService:
         shares = []
         # Share with new users
         for user_id in user_ids:
-            share = ChecklistAssignment.query.filter_by(template_id=template_id, user_id=user_id).first()
+            share = ChecklistAssignment.query.filter_by(template_id=template_id, user_id=user_id, tenant_id=g.tenant_id).first()
             if not share:
                 share = ChecklistAssignment(
                     template_id=template_id,
@@ -599,7 +605,7 @@ class ChecklistService:
                 shares.append(share)
 
         # Unshare with removed users
-        template = ChecklistTemplate.query.get(template_id)
+        template = ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first()
         for share in template.assignments:
             if share.user_id not in user_ids:
                 if template.created_by == share.user_id:
@@ -622,4 +628,4 @@ class ChecklistService:
         Returns:
             ChecklistAssignment instances
         """
-        return ChecklistTemplate.query.get(template_id).assignments
+        return ChecklistTemplate.query.filter_by(id=template_id, tenant_id=g.tenant_id).first().assignments

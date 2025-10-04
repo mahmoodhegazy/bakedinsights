@@ -9,6 +9,7 @@ from app import db
 from app.models.table import (Table, TableColumn, TableData, TableRecord,
                               TableShare, TableTab)
 from app.utils import FileManager
+from flask import g
 from werkzeug.utils import secure_filename
 
 
@@ -27,7 +28,7 @@ class TableService:
         Returns:
             Boolean indicated whether user has right to access record_id
         """
-        record = TableRecord.query.get(record_id)
+        record = TableRecord.query.filter_by(id=record_id, tenant_id=g.tenant_id).first()
         if record:
             return TableService.validate_user_for_tab(user_id, record.tab_id)
         return True
@@ -44,7 +45,7 @@ class TableService:
         Returns:
             Boolean indicated whether user has right to access column_id
         """
-        column = TableColumn.query.get(column_id)
+        column = TableColumn.query.filter_by(id=column_id, tenant_id=g.tenant_id).first()
         if column:
             return TableService.validate_user_for_tab(user_id, column.tab_id)
         return True
@@ -61,7 +62,7 @@ class TableService:
         Returns:
             Boolean indicated whether user has right to access table_id
         """
-        table_id = TableTab.query.get(tab_id).table_id
+        table_id = TableTab.query.filter_by(id=tab_id, tenant_id=g.tenant_id).first().table_id
         return TableService.validate_user_for_table(user_id, table_id)
 
     @staticmethod
@@ -92,7 +93,7 @@ class TableService:
         Returns:
             List of Table instances shared with user
         """
-        return TableShare.query.filter_by(user_id=user_id).all()
+        return TableShare.query.filter_by(user_id=user_id, tenant_id=g.tenant_id).all()
 
     @staticmethod
     def get_table(table_id: int):
@@ -105,7 +106,7 @@ class TableService:
         Returns:
             Table instances shared with user
         """
-        return Table.query.get(table_id)
+        return Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first()
 
     @staticmethod
     def get_table_shares(table_id: int):
@@ -118,7 +119,7 @@ class TableService:
         Returns:
             TableShare instances
         """
-        return Table.query.get(table_id).shares
+        return Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first().shares
 
     @staticmethod
     def get_table_tabs(table_id: int):
@@ -131,7 +132,7 @@ class TableService:
         Returns:
             Tab instances shared with user
         """
-        return Table.query.get(table_id).tabs
+        return Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first().tabs
 
     @staticmethod
     def get_column(column_id: int):
@@ -144,7 +145,7 @@ class TableService:
         Returns:
             Column instance
         """
-        return TableColumn.query.get(column_id)
+        return TableColumn.query.filter_by(id=column_id, tenant_id=g.tenant_id).first()
 
     @staticmethod
     def get_tab(tab_id: int):
@@ -157,7 +158,7 @@ class TableService:
         Returns:
             Tab instance
         """
-        return TableTab.query.get(tab_id)
+        return TableTab.query.filter_by(id=tab_id, tenant_id=g.tenant_id).first()
 
     @staticmethod
     def get_tab_data(tab_id: int):
@@ -176,7 +177,7 @@ class TableService:
         """
         # Get columns
         column_data = []
-        tab = TableTab.query.get(tab_id)
+        tab = TableTab.query.filter_by(id=tab_id, tenant_id=g.tenant_id).first()
         for c in tab.columns:
             data_type = c.data_type
             header = {
@@ -232,7 +233,7 @@ class TableService:
         Returns:
             Boolean indicating if deletion was successful
         """
-        column = TableColumn.query.get(column_id)
+        column = TableColumn.query.filter_by(id=column_id, tenant_id=g.tenant_id).first()
         if not column:
             return False
 
@@ -260,7 +261,7 @@ class TableService:
         Returns:
             Boolean indicating if deletion was successful
         """
-        table = Table.query.get(table_id)
+        table = Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first()
         if not table:
             return False
 
@@ -302,7 +303,7 @@ class TableService:
         Returns:
             Boolean indicating if deletion was successful
         """
-        tab = TableTab.query.get(tab_id)
+        tab = TableTab.query.filter_by(id=tab_id, tenant_id=g.tenant_id).first()
         if not tab:
             return False
 
@@ -338,7 +339,8 @@ class TableService:
                         columns: [{
                             name,
                             data_type,
-                        } for num columns]
+                        data: [[]]
+                        } for num columns],
                     } for num tabs],
                 }
             creator_id: ID of user creating the table
@@ -348,35 +350,60 @@ class TableService:
         """
         table = Table(
             name=data['name'].strip(),
-            created_by=creator_id
+            created_by=creator_id,
+            tenant_id=g.tenant_id
         )
 
         share = TableShare(
             table_id=table.id,
             user_id=creator_id,
+            tenant_id=g.tenant_id
         )
         table.shares.append(share)
 
         # Add tabs
+        tab_updates = []
         for i, tab_data in enumerate(data.get('tabs', [])):
             tab = TableTab(
                 name=tab_data['name'].strip(),
                 table_id=table.id,
                 tab_index=i,
+                tenant_id=g.tenant_id
             )
             table.tabs.append(tab)
 
             # Add columns
-            for col_data in tab_data.get('columns', []):
+            col_updates = []
+            for j, col_data in enumerate(tab_data.get('columns', [])):
                 column = TableColumn(
                     name=col_data['name'].strip(),
                     tab_id=tab.id,
                     data_type=col_data['data_type'],
+                    tenant_id=g.tenant_id
                 )
                 tab.columns.append(column)
+                col_updates.append(
+                    (column, [row[j] for row in tab_data.get("data", [])])
+                )
+            tab_updates.append((tab, col_updates))
 
         db.session.add(table)
         db.session.commit()
+
+        # Add cell data
+        for i, (tab, col_updates) in enumerate(tab_updates):
+            num_rows = len(col_updates[0][1])
+            for j in range(num_rows):
+                updates = [{
+                    "column_id": col.id,
+                    "value": v[j],
+                } for (col, v) in col_updates]
+                TableService.update_table_data(
+                    tab_id=tab.id,
+                    record_id=-1,
+                    updates=updates,
+                )
+
         return table
 
     @staticmethod
@@ -406,6 +433,7 @@ class TableService:
             name=data['name'].strip(),
             table_id=table_id,
             tab_index=tab_index,
+            tenant_id=g.tenant_id,
         )
 
         # Add columns
@@ -414,6 +442,7 @@ class TableService:
                 name=col_data['name'].strip(),
                 tab_id=tab.id,
                 data_type=col_data['data_type'],
+                tenant_id=g.tenant_id,
             )
             tab.columns.append(column)
 
@@ -433,19 +462,77 @@ class TableService:
         Returns:
             Updated TableColumn instance
         """
-        column = TableColumn.query.get(column_id)
+        column = TableColumn.query.filter_by(id=column_id, tenant_id=g.tenant_id).first()
         if column:
             if "name" in updates:
                 column.name = updates["name"].strip()
 
             if "data_type" in updates:
-                column.data_type = updates["data_type"]
+                prev_data_type = column.data_type
+                column.data_type = data_type = updates["data_type"]
+                for table_data in column.table_data:
+                    prev_value = None
+                    if prev_data_type in ['text', 'long-text']:
+                        prev_value = table_data.value_text
+                    elif prev_data_type == 'number':
+                        prev_value = table_data.value_num
+                    elif prev_data_type == 'boolean':
+                        prev_value = table_data.value_bool
+                    elif prev_data_type == 'date':
+                        prev_value = table_data.value_date
+                    elif prev_data_type == 'file':
+                        raise Exception("Cannot convert field of type 'file' to another format")
+                    elif prev_data_type == 'sku':
+                        prev_value = table_data.value_sku
+                    elif prev_data_type == 'lot-number':
+                        prev_value = table_data.value_lotnum
+                    elif prev_data_type == 'user':
+                        raise Exception("Cannot convert field of type 'user' to another format")
+
+                    (
+                        value_text,
+                        value_num,
+                        value_bool,
+                        value_date,
+                        value_fpath,
+                        value_sku,
+                        value_lotnum,
+                        value_user_id,
+                    ) = None, None, None, None, None, None, None, None
+                    if data_type in ['text', 'long-text']:
+                        value_text = prev_value
+                    elif data_type == 'number':
+                        value_num = prev_value
+                    elif data_type == 'boolean':
+                        value_bool = prev_value in ["true", "True", "TRUE", True, "yes", "YES", "Yes"]
+                    elif data_type == 'date':
+                        value_date = prev_value
+                    elif data_type == 'file':
+                        raise Exception("Cannot convert an existing field to type 'file'")
+                    elif data_type == 'sku':
+                        value_sku = prev_value
+                    elif data_type == 'lot-number':
+                        value_lotnum = prev_value
+                    elif data_type == 'user':
+                        raise Exception("Cannot convert an existing field to type 'user'")
+
+                    table_data.value_text = value_text
+                    table_data.value_num = value_num
+                    table_data.value_bool = value_bool
+                    table_data.value_date = value_date
+                    table_data.value_sku = value_sku
+                    table_data.value_lotnum = value_lotnum
+                    table_data.value_user_id = value_user_id
+                    table_data.value_fpath = value_fpath
+
+                    db.session.add(table_data)
 
         else:
             column = TableColumn(
                 name=updates.get("name").strip(),
                 data_type=updates.get("data_type"),
                 tab_id=updates.get("tab_id"),
+                tenant_id=g.tenant_id,
             )
             db.session.add(column)
 
@@ -464,7 +551,7 @@ class TableService:
         Returns:
             Updated TableTab instance
         """
-        tab = TableTab.query.get(tab_id)
+        tab = TableTab.query.filter_by(id=tab_id, tenant_id=g.tenant_id).first()
         if not tab:
             return False
 
@@ -484,7 +571,7 @@ class TableService:
         Returns:
             Updated Table instance
         """
-        table = Table.query.get(table_id)
+        table = Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first()
         if not table:
             return False
 
@@ -503,7 +590,7 @@ class TableService:
         Returns:
             Deleted TableRecord instance
         """
-        record = TableRecord.query.get(record_id)
+        record = TableRecord.query.filter_by(id=record_id, tenant_id=g.tenant_id).first()
         if record:
             table_data = record.table_data
             for d in table_data:
@@ -513,7 +600,11 @@ class TableService:
         return record
 
     @staticmethod
-    def update_table_data(tab_id: int, record_id: int, updates: List[Dict]) -> List[TableData]:
+    def update_table_data(
+        tab_id: int,
+        record_id: int,
+        updates: List[Dict],
+    ) -> List[TableData]:
         """
         Update or create table data entries
 
@@ -529,9 +620,12 @@ class TableService:
             List of updated/created TableData instances
         """
 
-        table_record = TableRecord.query.get(record_id)
+        table_record = TableRecord.query.filter_by(id=record_id, tenant_id=g.tenant_id).first()
         if not table_record:
-            table_record = TableRecord(tab_id=tab_id)
+            table_record = TableRecord(
+                tab_id=tab_id,
+                tenant_id=g.tenant_id
+            )
             db.session.add(table_record)
             db.session.commit()
         record_id = table_record.id
@@ -540,7 +634,7 @@ class TableService:
         for update in updates:
 
             # Data type of the field being update
-            data_type = TableColumn.query.get(update['column_id']).data_type
+            data_type = TableColumn.query.filter_by(id=update['column_id'], tenant_id=g.tenant_id).first().data_type
             (
                 value_text,
                 value_num,
@@ -556,7 +650,7 @@ class TableService:
             elif data_type == 'number':
                 value_num = update['value']
             elif data_type == 'boolean':
-                value_bool = update['value'] in ["true", "True", "TRUE"]
+                value_bool = update['value'] in ["true", "True", "TRUE", True]
             elif data_type == 'date':
                 value_date = update['value']
             elif data_type == 'file':
@@ -578,6 +672,7 @@ class TableService:
                 tab_id=tab_id,
                 column_id=update['column_id'],
                 record_id=record_id,
+                tenant_id=g.tenant_id,
             ).first()
 
             # Overwrite the entry in this table cell
@@ -611,12 +706,14 @@ class TableService:
                     value_sku=value_sku,
                     value_lotnum=value_lotnum,
                     value_user_id=value_user_id,
+                    tenant_id=g.tenant_id,
                 )
                 db.session.add(table_data)
 
             updated_data.append(table_data)
 
         db.session.commit()
+
         return updated_data
 
     @staticmethod
@@ -634,7 +731,7 @@ class TableService:
         shares = []
         # Share with new users
         for user_id in user_ids:
-            share = TableShare.query.filter_by(table_id=table_id, user_id=user_id).first()
+            share = TableShare.query.filter_by(table_id=table_id, user_id=user_id, tenant_id=g.tenant_id).first()
             if not share:
                 share = TableShare(
                     table_id=table_id,
@@ -644,7 +741,7 @@ class TableService:
                 shares.append(share)
 
         # Unshare with removed users
-        table = Table.query.get(table_id)
+        table = Table.query.filter_by(id=table_id, tenant_id=g.tenant_id).first()
         for share in table.shares:
             if share.user_id not in user_ids:
                 if table.created_by == share.user_id:

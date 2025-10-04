@@ -7,9 +7,10 @@ All rights reserved.
 from datetime import datetime
 
 from app import db
+from app.models.tenant import TenantScopedModel
 
 
-class ChecklistTemplate(db.Model):
+class ChecklistTemplate(TenantScopedModel):
     """
     ChecklistTemplate Model - Represents a template for production auditing checklists
 
@@ -28,7 +29,7 @@ class ChecklistTemplate(db.Model):
     assignments = db.relationship('ChecklistAssignment', backref='template', lazy=True)
 
 
-class ChecklistField(db.Model):
+class ChecklistField(TenantScopedModel):
     """
     ChecklistField - Represents a field in a checklist template
     """
@@ -41,7 +42,7 @@ class ChecklistField(db.Model):
     order = db.Column(db.Integer, nullable=False)
 
 
-class Checklist(db.Model):
+class Checklist(TenantScopedModel):
     """
     Checklist Model - Represents a checklist created from a template
 
@@ -57,7 +58,7 @@ class Checklist(db.Model):
     items = db.relationship('ChecklistItem', backref='checklist', lazy=True)
 
 
-class ChecklistItem(db.Model):
+class ChecklistItem(TenantScopedModel):
     """
     ChecklistItem Model - Represents individual steps/questions in a checklist
 
@@ -80,7 +81,7 @@ class ChecklistItem(db.Model):
     updated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 
-class ChecklistAssignment(db.Model):
+class ChecklistAssignment(TenantScopedModel):
     """
     ChecklistAssignment Model - Links checklists to users they're assigned to
 

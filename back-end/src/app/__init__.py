@@ -10,6 +10,7 @@ from config import Config
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -18,6 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Initialize extensions
 db = SQLAlchemy()  # Database ORM
 jwt = JWTManager()  # JWT handling for authentication
+mail = Mail()  # Mail for handling automated emails
 
 def create_app():
     """
@@ -31,7 +33,8 @@ def create_app():
     # Initialize Flask extensions
     db.init_app(flask_app)
     jwt.init_app(flask_app)
-    CORS(flask_app)  # Enable Cross-Origin Resource Sharing
+    mail.init_app(flask_app)
+    CORS(flask_app, supports_credentials=True)  # Your React app origin
 
     # Import and register blueprints for modular routing
     from app.routes import auth, checklists, tables, users, files
@@ -42,6 +45,5 @@ def create_app():
     flask_app.register_blueprint(users.user_bp, url_prefix='/api/users')
     flask_app.register_blueprint(tables.table_bp, url_prefix='/api/tables')
     flask_app.register_blueprint(files.file_bp, url_prefix='/api/files')
-
 
     return flask_app
