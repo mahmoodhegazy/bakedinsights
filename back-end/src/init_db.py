@@ -85,7 +85,7 @@ def init_db():
         db.session.commit()
 
         print("Database initialized with test data:")
-        print("Users created (all with password 'password123'):")
+        print("Users created (all with password 'Admin123'):")
         for user in users.values():
             print(f"- {user.username} ({user.role}) (tenant: {user.tenant_id})")
 

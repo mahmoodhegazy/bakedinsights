@@ -30,7 +30,7 @@ The backend will run on `http://localhost:5050`.
 The frontend proxies all `/api/*` requests to the backend server.
 
 ## Default Users
-The database has been initialized with test users (password: `password123`):
+The database has been initialized with test users (password: `Admin123`):
 - **admin** (super_admin, tenant: 1)
 - **fadmin** (admin, tenant: 1)
 - **radmin** (admin, tenant: 1)
