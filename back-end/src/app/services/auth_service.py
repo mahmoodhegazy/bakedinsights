@@ -34,7 +34,7 @@ class AuthService:
         user = User.query.filter_by(tenant_id=g.tenant_id, username=username).first()
         if user and user.check_password(password) and not user.deactivated:
             access_token = create_access_token(
-                identity=user.id,
+                identity=str(user.id),
                 additional_claims={
                     'tenant_id': str(user.tenant_id),
                     'role': str(user.role)
@@ -138,5 +138,5 @@ class AuthService:
         Returns:
             Boolean indicating if user has required role
         """
-        current_user_id = get_jwt_identity()
+        current_user_id = int(get_jwt_identity())
         return user_id == current_user_id

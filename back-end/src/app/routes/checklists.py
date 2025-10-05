@@ -11,6 +11,12 @@ from app.types import ADMIN_ROLES, SUPER_ADMIN_ROLES
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+
+def get_current_user_id():
+    """Helper function to get current user ID as integer"""
+    return int(get_jwt_identity())
+
+
 checklist_bp = Blueprint('checklists', __name__)
 checklist_bp.before_request(setup_tenant_context)
 
@@ -34,13 +40,13 @@ def create_checklist_template():
         "id": integer
     }
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
         template = ChecklistService.create_checklist_template(
             data=request.get_json(),
-            creator_id=get_jwt_identity()
+            creator_id=get_current_user_id()
         )
         return jsonify({
             "message": "Checklist template created",
@@ -82,10 +88,10 @@ def update_checklist_template(template_id):
         "id": integer
     }
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 
-    if not ChecklistService.validate_user_for_template(user_id=get_jwt_identity(), template_id=template_id):
+    if not ChecklistService.validate_user_for_template(user_id=get_current_user_id(), template_id=template_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -116,7 +122,7 @@ def get_all_templates():
     }
     """
     try:
-        templates = ChecklistService.get_all_templates(user_id=get_jwt_identity())
+        templates = ChecklistService.get_all_templates(user_id=get_current_user_id())
         if not templates:
             return jsonify({"message": "No templates found"}), 200
 
@@ -151,7 +157,7 @@ def get_template(template_id):
         ],
     }
     """
-    if not ChecklistService.validate_user_for_template(user_id=get_jwt_identity(), template_id=template_id):
+    if not ChecklistService.validate_user_for_template(user_id=get_current_user_id(), template_id=template_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -169,10 +175,10 @@ def delete_field(field_id):
     """
     Delete a ChecklistField Endpoint
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 
-    if not ChecklistService.validate_user_for_field(user_id=get_jwt_identity(), field_id=field_id):
+    if not ChecklistService.validate_user_for_field(user_id=get_current_user_id(), field_id=field_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -190,10 +196,10 @@ def delete_template(template_id):
     """
     Delete Template Endpoint
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 
-    if not ChecklistService.validate_user_for_template(user_id=get_jwt_identity(), template_id=template_id):
+    if not ChecklistService.validate_user_for_template(user_id=get_current_user_id(), template_id=template_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -231,7 +237,7 @@ def get_user_checklists():
     }
     """
     try:
-        checklists = ChecklistService.get_user_checklists(user_id=get_jwt_identity())
+        checklists = ChecklistService.get_user_checklists(user_id=get_current_user_id())
         if not checklists:
             return jsonify({"message": "No checklists found"}), 200
 
@@ -259,7 +265,7 @@ def create_checklist(template_id):
     try:
         checklist = ChecklistService.create_checklist(
             template_id=template_id,
-            creator_id=get_jwt_identity()
+            creator_id=get_current_user_id()
         )
         return jsonify({
             "message": "Checklist created",
@@ -289,7 +295,7 @@ def get_checklist(checklist_id):
         }
     ],
     """
-    if not ChecklistService.validate_user_for_checklist(user_id=get_jwt_identity(), checklist_id=checklist_id):
+    if not ChecklistService.validate_user_for_checklist(user_id=get_current_user_id(), checklist_id=checklist_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -305,7 +311,7 @@ def delete_checklist(checklist_id):
     """
     Delete Template Endpoint
     """
-    if not ChecklistService.validate_user_for_checklist(user_id=get_jwt_identity(), checklist_id=checklist_id):
+    if not ChecklistService.validate_user_for_checklist(user_id=get_current_user_id(), checklist_id=checklist_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -356,13 +362,13 @@ def update_checklist_item():
     if request.files:
         data.update(dict(request.files))
 
-    if not ChecklistService.validate_user_for_item(user_id=get_jwt_identity(), item_id=data["id"]):
+    if not ChecklistService.validate_user_for_item(user_id=get_current_user_id(), item_id=data["id"]):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
         item = ChecklistService.update_checklist_item(
             data=data,
-            updated_by=get_jwt_identity()
+            updated_by=get_current_user_id()
         )
         return jsonify({
             "message": "Checklist template updated.",
@@ -380,7 +386,7 @@ def submit_checklist(checklist_id):
     """
     Delete Template Endpoint
     """
-    if not ChecklistService.validate_user_for_checklist(user_id=get_jwt_identity(), checklist_id=checklist_id):
+    if not ChecklistService.validate_user_for_checklist(user_id=get_current_user_id(), checklist_id=checklist_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -403,7 +409,7 @@ def share_template(template_id):
         "user_ids": [integer]
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not AuthService.validate_user_role(user_id, SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -430,7 +436,7 @@ def get_template_shares(template_id):
     """
     Get ChecklistShares for given template_id
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not AuthService.validate_user_role(user_id, SUPER_ADMIN_ROLES + ADMIN_ROLES):
         return jsonify({"message": "Unauthorized"}), 403
 

@@ -10,6 +10,12 @@ from app.types import ADMIN_ROLES, SUPER_ADMIN_ROLES, VALID_ROLES
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
+
+def get_current_user_id():
+    """Helper function to get current user ID as integer"""
+    return int(get_jwt_identity())
+
+
 user_bp = Blueprint('users', __name__)
 user_bp.before_request(setup_tenant_context)
 
@@ -39,7 +45,7 @@ def create_user():
     }
     """
     # Verify super_admin role
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES):
         return jsonify({"message": "Unauthorized - Super Admin access required"}), 403
 
     data = request.get_json()
@@ -174,7 +180,7 @@ def get_current_user():
         }
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     try:
         user = UserService.get_user_by_id(user_id)
         if not user:
@@ -265,7 +271,7 @@ def delete_user(user_id):
         "message": string
     }
     """
-    if not AuthService.validate_user_role(get_jwt_identity(), SUPER_ADMIN_ROLES):
+    if not AuthService.validate_user_role(get_current_user_id(), SUPER_ADMIN_ROLES):
         return jsonify({"message": "Unauthorized - Super Admin access required to deactivate user"}), 403
 
     if AuthService.validate_user_id(user_id):

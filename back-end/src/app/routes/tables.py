@@ -9,6 +9,12 @@ from app.services.user_service import UserService
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+
+def get_current_user_id():
+    """Helper function to get current user ID as integer"""
+    return int(get_jwt_identity())
+
+
 table_bp = Blueprint('tables', __name__)
 table_bp.before_request(setup_tenant_context)
 
@@ -19,7 +25,7 @@ def get_user_tables():
     """
     Get all Table instances shared with user
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     try:
         table_shares = TableService.get_user_tables(user_id=user_id)
         resp_data = []
@@ -49,7 +55,7 @@ def get_table(table_id):
     """
     Get Table instance and all associated info (tabs, tab data, & shares)
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_table(user_id=user_id, table_id=table_id):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -92,7 +98,7 @@ def get_table_shares(table_id):
     """
     Get TableShares for given table_id
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_table(user_id=user_id, table_id=table_id):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -129,7 +135,7 @@ def update_table_column():
         }
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     data = request.get_json()
     column_id = data["column_id"]
     if not TableService.validate_user_for_column(user_id=user_id, column_id=column_id):
@@ -163,7 +169,7 @@ def update_table_data(tab_id):
             }]
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_tab(user_id=user_id, tab_id=tab_id):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -222,7 +228,7 @@ def create_table():
     try:
         table = TableService.create_table(
             data=request.get_json(),
-            creator_id=get_jwt_identity()
+            creator_id=get_current_user_id()
         )
         return jsonify({
             "message": "Table created",
@@ -242,7 +248,7 @@ def delete_table_record(record_id):
     """
     Delete Table Record Endpoint
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_record(user_id=user_id, record_id=record_id):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -268,7 +274,7 @@ def delete_table_column(column_id):
         "message": string
     }
     """
-    if not TableService.validate_user_for_column(user_id=get_jwt_identity(), column_id=column_id):
+    if not TableService.validate_user_for_column(user_id=get_current_user_id(), column_id=column_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -292,7 +298,7 @@ def delete_table(table_id):
     }
     """
     table = TableService.get_table(table_id=table_id)
-    if table.created_by != get_jwt_identity():
+    if table.created_by != get_current_user_id():
         return jsonify({"message": "Unauthorized - Must be table creator"}), 403
 
     try:
@@ -321,7 +327,7 @@ def udpate_table(table_id):
         "table_id": integer
     }
     """
-    if not TableService.validate_user_for_table(user_id=get_jwt_identity(), table_id=table_id):
+    if not TableService.validate_user_for_table(user_id=get_current_user_id(), table_id=table_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     data = request.get_json()
@@ -359,7 +365,7 @@ def udpate_table_tab(tab_id):
     }
     """
 
-    if not TableService.validate_user_for_tab(user_id=get_jwt_identity(), tab_id=tab_id):
+    if not TableService.validate_user_for_tab(user_id=get_current_user_id(), tab_id=tab_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     data = request.get_json()
@@ -391,7 +397,7 @@ def delete_table_tab(tab_id):
         "tab_id": integer
     }
     """
-    if not TableService.validate_user_for_tab(user_id=get_jwt_identity(), tab_id=tab_id):
+    if not TableService.validate_user_for_tab(user_id=get_current_user_id(), tab_id=tab_id):
         return jsonify({"message": "Unauthorized"}), 403
 
     try:
@@ -425,7 +431,7 @@ def create_tab(table_id):
         ],
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_table(user_id=user_id, table_id=table_id):
         return jsonify({"message": "Unauthorized"}), 403
 
@@ -455,7 +461,7 @@ def share_table(table_id):
         "user_ids": [integer]
     }
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     if not TableService.validate_user_for_table(user_id=user_id, table_id=table_id):
         return jsonify({"message": "Unauthorized"}), 403
 
