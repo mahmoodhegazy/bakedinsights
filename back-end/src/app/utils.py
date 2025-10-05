@@ -16,8 +16,8 @@ import PyPDF2
 class FileManager:
     """ File Manager """
 
-    AWS_SERVER_PUBLIC_KEY = ""
-    AWS_SERVER_SECRET_KEY = "MksqQYVahR6lnEu3JCgJUn1llKgSqw+1HpIrY+84"
+    AWS_SERVER_PUBLIC_KEY = os.environ.get('AWS_ACCESS_KEY_ID', '')
+    AWS_SERVER_SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
     BUCKET_NAME = "bakedinsights-multi-tenant-beta-bucket"
 
     PRESIGNED_URL_DEMARKATION = ":BAKEDINSIGHTS-DEMARKATION-PRESIGNED-URL:"
