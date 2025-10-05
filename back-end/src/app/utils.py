@@ -16,9 +16,9 @@ import PyPDF2
 class FileManager:
     """ File Manager """
 
-    AWS_SERVER_PUBLIC_KEY = "AKIA2WKCUQJFIORRZJ2F"
-    AWS_SERVER_SECRET_KEY = "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"
-    BUCKET_NAME = "beta-bakedinsights-s3bucket-virginia"
+    AWS_SERVER_PUBLIC_KEY = ""
+    AWS_SERVER_SECRET_KEY = "MksqQYVahR6lnEu3JCgJUn1llKgSqw+1HpIrY+84"
+    BUCKET_NAME = "bakedinsights-multi-tenant-beta-bucket"
 
     PRESIGNED_URL_DEMARKATION = ":BAKEDINSIGHTS-DEMARKATION-PRESIGNED-URL:"
 
@@ -43,7 +43,10 @@ class FileManager:
         unique_filename = False
         attempt_num = 0
         while not unique_filename:
-            keys = {o.key for o in bucket.objects.filter(Prefix=attempt_filename)}
+            keys = {
+                o.key
+                for o in bucket.objects.filter(Prefix=attempt_filename)
+            }
             if attempt_filename in keys:
                 attempt_num += 1
                 attempt_filename = f"{attempt_num}-{filename}"
@@ -69,12 +72,13 @@ class FileManager:
             aws_secret_access_key=FileManager.AWS_SERVER_SECRET_KEY,
         )
         s3 = session.client("s3")
-        presigned_url = s3.generate_presigned_url(
-            'get_object',
-            Params={
-                'Bucket': FileManager.BUCKET_NAME,
-                'Key': filename
-            }, ExpiresIn=3600)
+        presigned_url = s3.generate_presigned_url('get_object',
+                                                  Params={
+                                                      'Bucket':
+                                                      FileManager.BUCKET_NAME,
+                                                      'Key': filename
+                                                  },
+                                                  ExpiresIn=3600)
         return presigned_url
 
     @staticmethod
@@ -90,12 +94,9 @@ class FileManager:
             aws_secret_access_key=FileManager.AWS_SERVER_SECRET_KEY,
         )
         s3 = session.client("s3")
-        response = s3.delete_object(
-            Bucket=FileManager.BUCKET_NAME,
-            Key=filename
-        )
+        response = s3.delete_object(Bucket=FileManager.BUCKET_NAME,
+                                    Key=filename)
         return response
-
 
     @staticmethod
     def clear_bucket():
@@ -107,7 +108,6 @@ class FileManager:
         s3 = session.resource("s3")
         bucket = s3.Bucket(FileManager.BUCKET_NAME)
         bucket.objects.all().delete()
-
 
     @staticmethod
     def get_file_content(filename):
@@ -129,10 +129,8 @@ class FileManager:
 
             # Get file metadata to determine file type
             try:
-                head_response = s3.head_object(
-                    Bucket=FileManager.BUCKET_NAME,
-                    Key=filename
-                )
+                head_response = s3.head_object(Bucket=FileManager.BUCKET_NAME,
+                                               Key=filename)
                 content_type = head_response.get('ContentType', '')
                 file_size = head_response.get('ContentLength', 0)
             except botocore.exceptions.ClientError:
@@ -141,11 +139,9 @@ class FileManager:
 
             # Download the file to a temporary file
             with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                s3.download_file(
-                    Bucket=FileManager.BUCKET_NAME,
-                    Key=filename,
-                    Filename=temp_file.name
-                )
+                s3.download_file(Bucket=FileManager.BUCKET_NAME,
+                                 Key=filename,
+                                 Filename=temp_file.name)
                 temp_path = temp_file.name
 
             # Process file based on its type
@@ -170,7 +166,8 @@ class FileManager:
                     }
 
                 # Excel files
-                elif file_ext in ['.xlsx', '.xls'] or 'excel' in content_type.lower():
+                elif file_ext in ['.xlsx', '.xls'
+                                  ] or 'excel' in content_type.lower():
                     xls = pd.ExcelFile(temp_path)
                     excel_data = {}
 
@@ -195,8 +192,12 @@ class FileManager:
                     result["content"] = text
 
                 # Text files
-                elif file_ext in ['.txt', '.md', '.log'] or content_type.startswith('text/'):
-                    with open(temp_path, 'r', encoding='utf-8', errors='ignore') as text_file:
+                elif file_ext in ['.txt', '.md', '.log'
+                                  ] or content_type.startswith('text/'):
+                    with open(temp_path,
+                              'r',
+                              encoding='utf-8',
+                              errors='ignore') as text_file:
                         result["content"] = text_file.read()
 
                 # Other file types - return error
@@ -287,7 +288,6 @@ class FileProcessingService:
             result[sheet_name] = sheet_data
 
         return result
-
 
     @staticmethod
     def process_pdf(filepath):
