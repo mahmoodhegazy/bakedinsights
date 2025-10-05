@@ -7,7 +7,7 @@ import os
 import sys
 
 from config import Config
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_mail import Mail
@@ -29,6 +29,11 @@ def create_app():
     """
     flask_app = Flask(__name__)
     flask_app.config.from_object(Config)
+    
+    # Configure static file serving for production
+    static_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'front-end', 'baked-insights-frontend', 'dist')
+    flask_app.static_folder = static_folder
+    flask_app.static_url_path = ''
 
     # Initialize Flask extensions
     db.init_app(flask_app)
@@ -45,5 +50,16 @@ def create_app():
     flask_app.register_blueprint(users.user_bp, url_prefix='/api/users')
     flask_app.register_blueprint(tables.table_bp, url_prefix='/api/tables')
     flask_app.register_blueprint(files.file_bp, url_prefix='/api/files')
+    
+    # Serve React frontend for all non-API routes
+    @flask_app.route('/', defaults={'path': ''})
+    @flask_app.route('/<path:path>')
+    def serve_frontend(path):
+        static_dir = flask_app.static_folder
+        if static_dir and path and os.path.exists(os.path.join(static_dir, path)):
+            return send_from_directory(static_dir, path)
+        if static_dir:
+            return send_from_directory(static_dir, 'index.html')
+        return 'Static folder not configured', 500
 
     return flask_app

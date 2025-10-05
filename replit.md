@@ -15,11 +15,10 @@ BakedInsights is a full-stack web application for managing checklists and tables
 
 ## Running the Application
 
-### Frontend (Automatic)
+### Development Mode
 The frontend runs automatically via the "Frontend" workflow on port 5000.
 
-### Backend (Manual Start Required)
-To start the backend server, open a new Shell tab and run:
+To start the backend server during development, open a new Shell tab and run:
 ```bash
 cd back-end/src
 python run.py
@@ -29,6 +28,10 @@ The backend will run on `http://localhost:5050`.
 
 The frontend proxies all `/api/*` requests to the backend server.
 
+### Production Deployment (Autoscale)
+For Autoscale deployment, Flask serves both the API and the React frontend on a single port (5000).
+The React app is built and served as static files from Flask.
+
 ## Default Users
 The database has been initialized with test users (password: `Admin123`):
 - **admin** (super_admin, tenant: 1)
@@ -37,6 +40,12 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-01-05**: Fixed deployment for Autoscale
+  - Configured Flask to serve React frontend as static files
+  - Updated deployment to use single port (5000) as required by Autoscale
+  - Created requirements.txt for Python dependencies
+  - Fixed TypeScript compilation errors (removed unused variables)
+  - Removed background processes from deployment configuration
 - **2025-01-04**: Initial Replit setup
   - Configured Vite to use port 5000 with host 0.0.0.0
   - Configured backend to use localhost:5050
