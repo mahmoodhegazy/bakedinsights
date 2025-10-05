@@ -6,12 +6,12 @@ BakedInsights is a full-stack web application for managing checklists and tables
 **Tech Stack:**
 - **Frontend**: React + TypeScript + Vite (Port 5000)
 - **Backend**: Python Flask (Port 5050)
-- **Database**: SQLite (development)
+- **Database**: PostgreSQL (Replit-managed, persistent)
 
 ## Architecture
 - **Frontend**: `/front-end/baked-insights-frontend/` - React SPA with Vite dev server
 - **Backend**: `/back-end/src/` - Flask REST API
-- **Database**: SQLite database at `/back-end/src/bakedinsights.db`
+- **Database**: PostgreSQL (managed by Replit, accessible via DATABASE_URL)
 
 ## Running the Application
 
@@ -40,12 +40,17 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-01-05**: Migrated to PostgreSQL for persistent storage
+  - Created and initialized PostgreSQL database with test users
+  - Data now persists across deployments and app restarts
+  - Backend tested and working with PostgreSQL
 - **2025-01-05**: Fixed deployment for Autoscale
   - Configured Flask to serve React frontend as static files
   - Updated deployment to use single port (5000) as required by Autoscale
   - Created requirements.txt for Python dependencies
   - Fixed TypeScript compilation errors (removed unused variables)
   - Removed background processes from deployment configuration
+  - Added database initialization to build process
 - **2025-01-04**: Initial Replit setup
   - Configured Vite to use port 5000 with host 0.0.0.0
   - Configured backend to use localhost:5050
