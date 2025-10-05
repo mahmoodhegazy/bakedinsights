@@ -144,7 +144,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ isOpen, onClose }) => {
   }, [addDataRefreshListener, queryClient]);
 
   // Query to fetch all checklist templates (to get fields data)
-  const { data: checklistTemplates, isLoading: isLoadingTemplates } = useQuery<APIChecklistTemplate[]>({
+  const { isLoading: isLoadingTemplates } = useQuery<APIChecklistTemplate[]>({
     queryKey: ['checklistTemplates'],
     queryFn: async () => {
       try {

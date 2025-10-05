@@ -6,7 +6,7 @@ interface AuthState {
     logout: () => void;
 }
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>(() => ({
     getToken : () => {
         const token = localStorage.getItem('token');
         if (token) {

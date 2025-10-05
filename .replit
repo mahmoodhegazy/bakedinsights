@@ -38,11 +38,7 @@ localPort = 5050
 externalPort = 3000
 exposeLocalhost = true
 
-[[ports]]
-localPort = 36379
-externalPort = 3001
-
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd back-end/src && gunicorn --bind=0.0.0.0:5050 --reuse-port run:gunicorn_app & cd front-end/baked-insights-frontend && npm run preview -- --host 0.0.0.0 --port 5000"]
-build = ["bash", "-c", "pip install flask flask-cors flask-jwt-extended flask-sqlalchemy gunicorn psycopg2-binary boto3 requests sqlalchemy pyotp pandas openpyxl PyPDF2 flask-mail && cd front-end/baked-insights-frontend && npm install && npm run build"]
+build = ["bash", "-c", "pip install -r back-end/requirements.txt && cd front-end/baked-insights-frontend && npm install && npm run build"]
