@@ -39,4 +39,4 @@ localPort = 5050
 [deployment]
 deploymentTarget = "autoscale"
 run = ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--chdir=back-end/src", "run:gunicorn_app"]
-build = ["bash", "-c", "cd front-end/baked-insights-frontend && npm run build"]
+build = ["sh", "-c", "cd front-end/baked-insights-frontend && npm install && npm run build"]
