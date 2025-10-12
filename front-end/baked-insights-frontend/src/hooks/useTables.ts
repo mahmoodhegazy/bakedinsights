@@ -177,25 +177,6 @@ export const useTablesManager = () => {
     });
 
 
-    const importCSVChunked = async (
-        {name, columns, data, onProgress}: {name: string, columns: any[], data: any[][], onProgress?: (current: number, total: number) => void},
-        {onSuccess, onError}: {onSuccess?: () => void, onError?: (error: Error) => void}
-    ) => {
-        try {
-            // Fast client-side parsing means we can upload all at once
-            // Data is already cleaned (commas removed, trimmed)
-            onProgress?.(1, 1);
-            await TableService.createTablefromData(name, columns, data);
-            
-            queryClient.invalidateQueries({ queryKey: ['assignedTablesData'] });
-            toast.success("Successfully imported CSV.");
-            onSuccess?.();
-        } catch (error: any) {
-            toast.error(`Error importing CSV: ${error.message}`);
-            onError?.(error);
-        }
-    };
-
    // Return all the necessary data and functions for components to use
     return {
         // Queries
@@ -206,7 +187,6 @@ export const useTablesManager = () => {
         createTable: createTableMutation.mutate,
         createTableFromData: createTableFromDataMutation.mutate,
         importCSV: importCSVMutation.mutate,
-        importCSVChunked,
         deleteTable: deleteTableMutation.mutate,
 
     };
