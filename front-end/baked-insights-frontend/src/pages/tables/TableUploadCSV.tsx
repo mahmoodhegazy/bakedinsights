@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { IoIosArrowBack, IoMdAttach } from "react-icons/io";
-import CSVReader from 'react-csv-reader';
 import { useTablesManager } from '../../hooks/useTables';
 
 export const TableUploadCSV = () => {
@@ -9,50 +8,23 @@ export const TableUploadCSV = () => {
     const navigate = useNavigate();
     const [title, setTitle] = useState<string>("New Table");
 
-    const { createTableFromData } = useTablesManager();
+    const { importCSV } = useTablesManager();
 
-
-    const parseCSV = (data: any[]) => {
-        if (data.length == 0) {
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) {
             return;
         }
 
-        const dataHeaders = [];
-        const dataValues = [];
-
-        // -- make headers (iterate through columns)
-        for (const columnName in data[0]) {
-            const dataType = typeof(data[0][columnName]);
-            var columnDataType;
-            if (["string", "symbol", "undefined", "object", "function"].includes(dataType)) {
-                columnDataType = "text";
-            } else if (columnDataType == "bigint") {
-                columnDataType = "number";
-            } else {
-                columnDataType = dataType;
+        // Upload raw file to server for parsing
+        importCSV({
+            file: file,
+            name: title || file.name.replace('.csv', '')
+        }, {
+            onSuccess: () => {
+                navigate(`/tables`);
             }
-            dataHeaders.push({name: columnName, data_type: columnDataType});
-        }
-
-        // -- iterate through rows
-        for (var rowIndex = 0; rowIndex < data.length; rowIndex++) {
-            const newRow = [];
-            // -- iterate through columns
-            for (const columnName in data[rowIndex]) {
-                let val = data[rowIndex][columnName];
-                if (val == undefined) {
-                    val = "";
-                }
-                newRow.push(val);
-            }
-            dataValues.push(newRow);
-        }
-
-        createTableFromData({
-            name: title,
-            columns: dataHeaders,
-            data: dataValues
-        }, {onSuccess : () => {navigate(`/tables`)}});
+        });
     };
 
     return (
@@ -81,14 +53,11 @@ export const TableUploadCSV = () => {
                 <span className="flex flex-col">
                     <h4 className="pl-1 uppercase text-sm font-bold">Attach CSV</h4>
                     <p className="pl-1 mb-4 mt-2 text-sm italic">File will be parsed and converted to a table.</p>
-                    <CSVReader
-                        cssClass="react-csv-input"
-                        onFileLoaded={(data) => parseCSV(data)}
-                        parserOptions={{
-                            header: true,
-                            dynamicTyping: true,
-                            skipEmptyLines: true,
-                        }}
+                    <input
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="pl-1 text-sm"
                     />
                 </span>
             </span>

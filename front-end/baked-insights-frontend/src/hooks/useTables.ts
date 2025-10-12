@@ -160,6 +160,14 @@ export const useTablesManager = () => {
         },
     });
 
+    const importCSVMutation = useMutation({
+        mutationFn: ({file, name} : {file: File, name: string}) => TableService.importCSV(file, name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['assignedTablesData'] });
+            toast.success("Successfully imported CSV.");
+        },
+    });
+
     const deleteTableMutation = useMutation({
         mutationFn: (id: number) => TableService.deleteTable(id),
         onSuccess: () => {
@@ -178,6 +186,7 @@ export const useTablesManager = () => {
         // Mutations
         createTable: createTableMutation.mutate,
         createTableFromData: createTableFromDataMutation.mutate,
+        importCSV: importCSVMutation.mutate,
         deleteTable: deleteTableMutation.mutate,
 
     };

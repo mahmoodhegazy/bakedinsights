@@ -3,6 +3,8 @@ Copyright (c) BakedInsights, Inc. and affiliates.
 All rights reserved.
 """
 
+import csv
+import io
 from app.hooks import setup_tenant_context
 from app.services.table_service import TableService
 from app.services.user_service import UserService
@@ -240,6 +242,92 @@ def create_table():
 
     except Exception as e:
         return jsonify({"message": "Error creating table", "error": str(e)}), 500
+
+
+@table_bp.route('/import', methods=['POST'])
+@jwt_required()
+def import_csv():
+    """
+    Import CSV File to Create New Table
+    
+    Accepts multipart/form-data with:
+    - file: CSV file
+    - name: table name (optional, defaults to filename)
+    """
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({"message": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"message": "No file selected"}), 400
+        
+        # Get table name from form or use filename
+        table_name = request.form.get('name', file.filename.rsplit('.', 1)[0])
+        
+        # Read and parse CSV
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+        
+        # Extract headers and determine data types
+        fieldnames = csv_reader.fieldnames
+        if not fieldnames:
+            return jsonify({"message": "CSV file is empty or invalid"}), 400
+        
+        columns = []
+        data_rows = []
+        
+        # Read first row to infer types
+        first_row = None
+        for row in csv_reader:
+            if first_row is None:
+                first_row = row
+                # Infer data types from first row
+                for column_name in fieldnames:
+                    value = row.get(column_name, '')
+                    # Simple type inference
+                    try:
+                        float(value)
+                        data_type = 'number'
+                    except (ValueError, TypeError):
+                        data_type = 'text'
+                    
+                    columns.append({
+                        "name": column_name,
+                        "data_type": data_type
+                    })
+            
+            # Convert row to list in column order
+            row_data = [row.get(col, '') for col in fieldnames]
+            data_rows.append(row_data)
+        
+        if not data_rows:
+            return jsonify({"message": "CSV file contains no data rows"}), 400
+        
+        # Create table using existing service
+        table_data = {
+            "name": table_name,
+            "tabs": [{
+                "name": "Tab 1",
+                "columns": columns,
+                "data": data_rows
+            }]
+        }
+        
+        table = TableService.create_table(
+            data=table_data,
+            creator_id=get_current_user_id()
+        )
+        
+        return jsonify({
+            "message": "Table created from CSV",
+            "table_id": table.id,
+            "rows_imported": len(data_rows)
+        }), 201
+        
+    except Exception as e:
+        return jsonify({"message": "Error importing CSV", "error": str(e)}), 500
 
 
 @table_bp.route('/records/<int:record_id>', methods=['DELETE'])

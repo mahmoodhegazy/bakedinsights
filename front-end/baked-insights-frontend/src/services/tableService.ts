@@ -213,6 +213,25 @@ export class TableService {
         }
     }
 
+    static async importCSV(file: File, name: string) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('name', name);
+        
+        try {
+            const response = await api.post('/tables/import', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            // Trigger refresh event
+            useDataRefreshStore.getState().triggerRefresh('table-created');
+            return response.data;
+        } catch(e: any) {
+            return Promise.reject(new Error(`${e.message}`));
+        }
+    }
+
     static async deleteTable(id: number) {
         try {
             await api.delete(`/tables/${id}`);

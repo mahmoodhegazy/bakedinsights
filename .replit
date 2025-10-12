@@ -35,7 +35,10 @@ externalPort = 80
 
 [[ports]]
 localPort = 5050
-exposeLocalhost = true
+
+[[ports]]
+localPort = 36207
+externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
