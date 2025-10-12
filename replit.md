@@ -40,6 +40,14 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-01-12**: Fixed CSV import to handle formatted numbers
+  - Strips whitespace from all CSV values
+  - Removes commas and spaces from numbers (e.g., " 3,300 " → 3300)
+  - Fixes PostgreSQL errors with formatted numeric data
+- **2025-01-12**: Configured production deployment for Autoscale
+  - Build step: Builds React frontend only (no database operations)
+  - Run step: Uses gunicorn to serve Flask on port 5000
+  - Production-safe: No database wipe on deploy
 - **2025-01-05**: Fixed large CSV upload issue
   - Created new `/api/tables/import` endpoint for server-side CSV parsing
   - Uploads now use multipart/form-data instead of JSON payloads
