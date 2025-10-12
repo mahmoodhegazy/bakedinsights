@@ -264,10 +264,20 @@ def import_csv():
             return jsonify({"message": "No file selected"}), 400
         
         # Get table name from form or use filename
-        table_name = request.form.get('name', file.filename.rsplit('.', 1)[0])
+        if request.form.get('name'):
+            table_name = request.form.get('name')
+        elif file.filename:
+            table_name = file.filename.rsplit('.', 1)[0] if '.' in file.filename else file.filename
+        else:
+            table_name = "Imported Table"
         
         # Read and parse CSV
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        try:
+            content = file.stream.read().decode("UTF8")
+        except UnicodeDecodeError:
+            return jsonify({"message": "File must be UTF-8 encoded"}), 400
+        
+        stream = io.StringIO(content, newline=None)
         csv_reader = csv.DictReader(stream)
         
         # Extract headers and determine data types
@@ -327,6 +337,9 @@ def import_csv():
         }), 201
         
     except Exception as e:
+        import traceback
+        print(f"CSV Import Error: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"message": "Error importing CSV", "error": str(e)}), 500
 
 

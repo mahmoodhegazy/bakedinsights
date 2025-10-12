@@ -5,6 +5,9 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///bakedinsights.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'dev-jwt-secret-key-change-in-production')
+    
+    # File upload configuration (16MB limit)
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
     MAIL_SERVER = 'smtp.gmail.com'
     MAIL_PORT = 587
