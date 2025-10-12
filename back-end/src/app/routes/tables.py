@@ -295,21 +295,32 @@ def import_csv():
                 first_row = row
                 # Infer data types from first row
                 for column_name in fieldnames:
-                    value = row.get(column_name, '')
-                    # Simple type inference
-                    try:
-                        float(value)
-                        data_type = 'number'
-                    except (ValueError, TypeError):
-                        data_type = 'text'
+                    value = row.get(column_name, '').strip()
+                    # Simple type inference with better number detection
+                    data_type = 'text'
+                    if value:
+                        try:
+                            # Remove common number formatting (commas, spaces)
+                            cleaned = value.replace(',', '').replace(' ', '')
+                            float(cleaned)
+                            data_type = 'number'
+                        except (ValueError, TypeError):
+                            data_type = 'text'
                     
                     columns.append({
                         "name": column_name,
                         "data_type": data_type
                     })
             
-            # Convert row to list in column order
-            row_data = [row.get(col, '') for col in fieldnames]
+            # Convert row to list in column order, cleaning number values
+            row_data = []
+            for i, col in enumerate(fieldnames):
+                value = row.get(col, '').strip()
+                # Clean number values if this column was inferred as number
+                if columns[i]['data_type'] == 'number' and value:
+                    # Remove commas and extra spaces from numbers
+                    value = value.replace(',', '').replace(' ', '')
+                row_data.append(value)
             data_rows.append(row_data)
         
         if not data_rows:

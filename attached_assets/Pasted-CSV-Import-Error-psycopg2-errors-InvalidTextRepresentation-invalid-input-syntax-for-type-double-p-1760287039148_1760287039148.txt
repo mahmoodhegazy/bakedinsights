@@ -1,0 +1,90 @@
+CSV Import Error: (psycopg2.errors.InvalidTextRepresentation) invalid input syntax for type double precision: " 3,300 "
+LINE 1: ...alue_user_id, tenant_id) VALUES (9, 49, 21, NULL, ' 3,300 ',...
+                                                             ^
+
+[SQL: INSERT INTO table_data (tab_id, column_id, record_id, value_text, value_num, value_bool, value_date, value_fpath, value_sku, value_lotnum, value_user_id, tenant_id) VALUES (%(tab_id)s, %(column_id)s, %(record_id)s, %(value_text)s, %(value_num)s, %(value_bool)s, %(value_date)s, %(value_fpath)s, %(value_sku)s, %(value_lotnum)s, %(value_user_id)s, %(tenant_id)s) RETURNING table_data.id]
+[parameters: {'tab_id': 9, 'column_id': 49, 'record_id': 21, 'value_text': None, 'value_num': ' 3,300 ', 'value_bool': None, 'value_date': None, 'value_fpath': None, 'value_sku': None, 'value_lotnum': None, 'value_user_id': None, 'tenant_id': '1'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.InvalidTextRepresentation: invalid input syntax for type double precision: " 3,300 "
+LINE 1: ...alue_user_id, tenant_id) VALUES (9, 49, 21, NULL, ' 3,300 ',...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/back-end/src/app/routes/tables.py", line 328, in import_csv
+    table = TableService.create_table(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/back-end/src/app/services/table_service.py", line 401, in create_table
+    TableService.update_table_data(
+  File "/home/runner/workspace/back-end/src/app/services/table_service.py", line 715, in update_table_data
+    db.session.commit()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/scoping.py", line 597, in commit
+    return self._proxied.commit()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2028, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1313, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 1288, in _prepare_impl
+    self.session.flush()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4352, in flush
+    self._flush(objects)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4487, in _flush
+    with util.safe_reraise():
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 4448, in _flush
+    flush_context.execute()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.DataError: (psycopg2.errors.InvalidTextRepresentation) invalid input syntax for type double precision: " 3,300 "
+LINE 1: ...alue_user_id, tenant_id) VALUES (9, 49, 21, NULL, ' 3,300 ',...
+                                                             ^
+
+[SQL: INSERT INTO table_data (tab_id, column_id, record_id, value_text, value_num, value_bool, value_date, value_fpath, value_sku, value_lotnum, value_user_id, tenant_id) VALUES (%(tab_id)s, %(column_id)s, %(record_id)s, %(value_text)s, %(value_num)s, %(value_bool)s, %(value_date)s, %(value_fpath)s, %(value_sku)s, %(value_lotnum)s, %(value_user_id)s, %(tenant_id)s) RETURNING table_data.id]
+[parameters: {'tab_id': 9, 'column_id': 49, 'record_id': 21, 'value_text': None, 'value_num': ' 3,300 ', 'value_bool': None, 'value_date': None, 'value_fpath': None, 'value_sku': None, 'value_lotnum': None, 'value_user_id': None, 'tenant_id': '1'}]
+(Background on this error at: https://sqlalche.me/e/20/9h9h)
+
+127.0.0.1 - - [12/Oct/2025 16:36:42] "POST /api/tables/import HTTP/1.1" 500 -
