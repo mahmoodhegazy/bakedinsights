@@ -57,10 +57,10 @@ export const TableUploadCSV = () => {
                 // Convert rows to array format and clean numbers
                 const data = rows.map(row => {
                     return headers.map((header, idx) => {
-                        let value = row[header] || '';
+                        let value = row[header] ?? '';
                         
-                        // Clean number values
-                        if (columns[idx].data_type === 'number' && value) {
+                        // Clean number values (but preserve 0 and other falsy values)
+                        if (columns[idx].data_type === 'number' && value !== '' && value !== null && value !== undefined) {
                             value = String(value).replace(/,/g, '').replace(/\s/g, '').trim();
                         }
                         
