@@ -1,0 +1,96 @@
+025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/back-end/src/app/services/table_service.py", line 401, in create_table
+2025-10-12 15:19:32.02
+73799d6e
+User
+TableService.update_table_data(
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/back-end/src/app/services/table_service.py", line 676, in update_table_data
+2025-10-12 15:19:32.02
+73799d6e
+User
+).first()
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2728, in first
+2025-10-12 15:19:32.02
+73799d6e
+User
+return self.limit(1)._iter().first() # type: ignore
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/query.py", line 2827, in _iter
+2025-10-12 15:19:32.02
+73799d6e
+User
+result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2362, in execute
+2025-10-12 15:19:32.02
+73799d6e
+User
+return self._execute_internal(
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/session.py", line 2247, in _execute_internal
+2025-10-12 15:19:32.02
+73799d6e
+User
+result: Result[Any] = compile_state_cls.orm_execute_statement(
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/orm/context.py", line 305, in orm_execute_statement
+2025-10-12 15:19:32.02
+73799d6e
+User
+result = conn.execute(
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^^^^^^^^^
+2025-10-12 15:19:32.02
+73799d6e
+User
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+2025-10-12 15:19:32.02
+73799d6e
+User
+return meth(
+2025-10-12 15:19:32.02
+73799d6e
+User
+^^^^^

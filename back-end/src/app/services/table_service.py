@@ -390,19 +390,32 @@ class TableService:
         db.session.add(table)
         db.session.commit()
 
-        # Add cell data
+        # Add cell data using bulk insert for better performance
         for i, (tab, col_updates) in enumerate(tab_updates):
+            if not col_updates or not col_updates[0][1]:
+                continue
+                
             num_rows = len(col_updates[0][1])
+            
+            # Prepare columns with their IDs and types for bulk insert
+            columns_for_bulk = [{
+                'id': col.id,
+                'data_type': col.data_type
+            } for (col, v) in col_updates]
+            
+            # Prepare data rows - transpose column data into rows
+            data_rows = []
             for j in range(num_rows):
-                updates = [{
-                    "column_id": col.id,
-                    "value": v[j],
-                } for (col, v) in col_updates]
-                TableService.update_table_data(
-                    tab_id=tab.id,
-                    record_id=-1,
-                    updates=updates,
-                )
+                row = [v[j] for (col, v) in col_updates]
+                data_rows.append(row)
+            
+            # Use bulk insert for all rows at once
+            TableService.bulk_insert_table_data(
+                tab_id=tab.id,
+                columns=columns_for_bulk,
+                data_rows=data_rows,
+                tenant_id=g.tenant_id
+            )
 
         return table
 
@@ -600,6 +613,91 @@ class TableService:
         return record
 
     @staticmethod
+    def bulk_insert_table_data(
+        tab_id: int,
+        columns: List[Dict],
+        data_rows: List[List],
+        tenant_id: str
+    ):
+        """
+        Bulk insert table data for CSV imports (optimized for large datasets)
+        
+        Args:
+            tab_id: ID of the tab
+            columns: List of column definitions with id and data_type
+            data_rows: List of rows, each row is a list of values
+            tenant_id: Tenant ID
+        """
+        # Batch create all records - this is still faster than per-row queries later
+        record_objects = []
+        for _ in data_rows:
+            record = TableRecord(
+                tab_id=tab_id,
+                tenant_id=tenant_id
+            )
+            record_objects.append(record)
+            db.session.add(record)
+        
+        # Flush to get all IDs at once
+        db.session.flush()
+        
+        # Extract IDs in the same order
+        record_ids = [r.id for r in record_objects]
+        
+        # Prepare bulk insert data for all cells
+        data_to_insert = []
+        
+        for row_idx, row_values in enumerate(data_rows):
+            record_id = record_ids[row_idx]
+            
+            # Prepare data for each cell
+            for col_idx, col in enumerate(columns):
+                value = row_values[col_idx] if col_idx < len(row_values) else ''
+                
+                # Store all values including empty, 0, False (don't skip falsy values!)
+                data_type = col['data_type']
+                cell_data = {
+                    'tab_id': tab_id,
+                    'column_id': col['id'],
+                    'record_id': record_id,
+                    'tenant_id': tenant_id,
+                    'value_text': None,
+                    'value_num': None,
+                    'value_bool': None,
+                    'value_date': None,
+                    'value_fpath': None,
+                    'value_sku': None,
+                    'value_lotnum': None,
+                    'value_user_id': None
+                }
+                
+                # Set the appropriate value field based on data type
+                if data_type in ['text', 'long-text']:
+                    cell_data['value_text'] = value
+                elif data_type == 'number':
+                    cell_data['value_num'] = value if value != '' else None
+                elif data_type == 'boolean':
+                    cell_data['value_bool'] = value in ["true", "True", "TRUE", True]
+                elif data_type == 'date':
+                    cell_data['value_date'] = value if value != '' else None
+                elif data_type == 'file':
+                    cell_data['value_fpath'] = value if value != '' else None
+                elif data_type == 'sku':
+                    cell_data['value_sku'] = value if value != '' else None
+                elif data_type == 'lot-number':
+                    cell_data['value_lotnum'] = value if value != '' else None
+                elif data_type == 'user':
+                    cell_data['value_user_id'] = value if value != '' else None
+                
+                data_to_insert.append(cell_data)
+        
+        # Bulk insert all cell data at once
+        if data_to_insert:
+            db.session.bulk_insert_mappings(TableData, data_to_insert)
+        
+        db.session.commit()
+
+    @staticmethod
     def update_table_data(
         tab_id: int,
         record_id: int,
@@ -630,11 +728,19 @@ class TableService:
             db.session.commit()
         record_id = table_record.id
 
+        # Fetch all column types at once to avoid N queries
+        column_ids = [update['column_id'] for update in updates]
+        columns = TableColumn.query.filter(
+            TableColumn.id.in_(column_ids),
+            TableColumn.tenant_id == g.tenant_id
+        ).all()
+        column_types = {col.id: col.data_type for col in columns}
+
         updated_data = []
         for update in updates:
 
-            # Data type of the field being update
-            data_type = TableColumn.query.filter_by(id=update['column_id'], tenant_id=g.tenant_id).first().data_type
+            # Data type of the field being updated
+            data_type = column_types.get(update['column_id'])
             (
                 value_text,
                 value_num,
