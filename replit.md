@@ -40,6 +40,11 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-01-12**: Fixed CSV import memory issue for large files
+  - Implemented bulk insert optimization (reduces 20,000+ queries to ~3 queries)
+  - Fixes memory exhaustion and timeouts on large CSV uploads
+  - Preserves all data including zeros, False values, and empty strings
+  - Supports all column types (text, number, boolean, date, file, sku, lot-number, user)
 - **2025-01-12**: Fixed CSV import to handle formatted numbers
   - Strips whitespace from all CSV values
   - Removes commas and spaces from numbers (e.g., " 3,300 " → 3300)
