@@ -36,10 +36,6 @@ externalPort = 80
 [[ports]]
 localPort = 5050
 
-[[ports]]
-localPort = 42739
-externalPort = 3000
-
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd back-end/src && gunicorn --bind=0.0.0.0:5000 --reuse-port run:gunicorn_app"]
