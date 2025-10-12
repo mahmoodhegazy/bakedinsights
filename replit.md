@@ -40,10 +40,11 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
-- **2025-01-05**: Fixed large CSV upload issue
-  - Created new `/api/tables/import` endpoint for server-side CSV parsing
-  - Uploads now use multipart/form-data instead of JSON payloads
-  - Eliminates 500 errors for files >100KB by avoiding payload inflation
+- **2025-01-05**: Optimized CSV upload for speed and reliability
+  - Switched to client-side CSV parsing using Papa Parse (much faster for large files)
+  - Data cleaning happens in browser before upload (removes commas from numbers, trims whitespace)
+  - Fixed data integrity bug to preserve zero values and other falsy data
+  - Eliminates 500 errors and provides fast upload experience even for large CSVs
 - **2025-01-05**: Migrated to PostgreSQL for persistent storage
   - Created and initialized PostgreSQL database with test users
   - Data now persists across deployments and app restarts
