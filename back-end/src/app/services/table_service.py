@@ -390,19 +390,25 @@ class TableService:
         db.session.add(table)
         db.session.commit()
 
-        # Add cell data
+        # Add cell data using bulk insert for performance
         for i, (tab, col_updates) in enumerate(tab_updates):
+            if not col_updates or not col_updates[0][1]:
+                continue
+
+            # Extract columns and transpose data to rows
+            columns = [col for col, _ in col_updates]
             num_rows = len(col_updates[0][1])
+            rows_data = []
             for j in range(num_rows):
-                updates = [{
-                    "column_id": col.id,
-                    "value": v[j],
-                } for (col, v) in col_updates]
-                TableService.update_table_data(
-                    tab_id=tab.id,
-                    record_id=-1,
-                    updates=updates,
-                )
+                row = [values[j] for _, values in col_updates]
+                rows_data.append(row)
+
+            # Use bulk insert instead of per-row updates
+            TableService.bulk_insert_table_data(
+                tab_id=tab.id,
+                columns=columns,
+                rows_data=rows_data,
+            )
 
         return table
 
@@ -600,6 +606,102 @@ class TableService:
         return record
 
     @staticmethod
+    def bulk_insert_table_data(
+        tab_id: int,
+        columns: List[TableColumn],
+        rows_data: List[List],
+    ) -> List[TableData]:
+        """
+        Bulk insert table data for multiple rows (optimized for CSV upload)
+
+        Args:
+            tab_id: ID of tab being updated
+            columns: List of TableColumn instances
+            rows_data: List of rows, where each row is a list of values
+
+        Returns:
+            List of created TableData instances
+        """
+        # Create all records at once
+        records = []
+        for _ in rows_data:
+            record = TableRecord(
+                tab_id=tab_id,
+                tenant_id=g.tenant_id
+            )
+            records.append(record)
+
+        db.session.bulk_save_objects(records, return_defaults=True)
+        db.session.commit()
+
+        # Prepare all table data entries for bulk insert
+        table_data_entries = []
+        for row_idx, row_values in enumerate(rows_data):
+            record = records[row_idx]
+
+            for col_idx, column in enumerate(columns):
+                if col_idx >= len(row_values):
+                    continue
+
+                value = row_values[col_idx]
+                data_type = column.data_type
+
+                (
+                    value_text,
+                    value_num,
+                    value_bool,
+                    value_date,
+                    value_fpath,
+                    value_sku,
+                    value_lotnum,
+                    value_user_id,
+                ) = None, None, None, None, None, None, None, None
+
+                if data_type in ['text', 'long-text']:
+                    value_text = value
+                elif data_type == 'number':
+                    value_num = value
+                elif data_type == 'boolean':
+                    value_bool = value in ["true", "True", "TRUE", True, "yes", "YES", "Yes"]
+                elif data_type == 'date':
+                    value_date = value
+                elif data_type == 'file':
+                    value_fpath = value
+                    if hasattr(value_fpath, 'filename'):
+                        value_fpath = FileManager.save_file_to_bucket(
+                            filename=secure_filename(value.filename),
+                            file=value
+                        )
+                elif data_type == 'sku':
+                    value_sku = value
+                elif data_type == 'lot-number':
+                    value_lotnum = value
+                elif data_type == 'user':
+                    value_user_id = value
+
+                table_data = TableData(
+                    tab_id=tab_id,
+                    column_id=column.id,
+                    record_id=record.id,
+                    value_text=value_text,
+                    value_num=value_num,
+                    value_bool=value_bool,
+                    value_date=value_date,
+                    value_fpath=value_fpath,
+                    value_sku=value_sku,
+                    value_lotnum=value_lotnum,
+                    value_user_id=value_user_id,
+                    tenant_id=g.tenant_id,
+                )
+                table_data_entries.append(table_data)
+
+        # Bulk insert all table data
+        db.session.bulk_save_objects(table_data_entries)
+        db.session.commit()
+
+        return table_data_entries
+
+    @staticmethod
     def update_table_data(
         tab_id: int,
         record_id: int,
@@ -630,11 +732,31 @@ class TableService:
             db.session.commit()
         record_id = table_record.id
 
+        # PERFORMANCE FIX: Batch fetch all columns and their data types in one query
+        column_ids = [update['column_id'] for update in updates]
+        columns = TableColumn.query.filter(
+            TableColumn.id.in_(column_ids),
+            TableColumn.tenant_id == g.tenant_id
+        ).all()
+        column_data_types = {col.id: col.data_type for col in columns}
+
+        # PERFORMANCE FIX: Batch fetch all existing table data in one query
+        existing_data = TableData.query.filter(
+            TableData.tab_id == tab_id,
+            TableData.record_id == record_id,
+            TableData.column_id.in_(column_ids),
+            TableData.tenant_id == g.tenant_id,
+        ).all()
+        existing_data_map = {data.column_id: data for data in existing_data}
+
         updated_data = []
         for update in updates:
+            column_id = update['column_id']
+            data_type = column_data_types.get(column_id)
 
-            # Data type of the field being update
-            data_type = TableColumn.query.filter_by(id=update['column_id'], tenant_id=g.tenant_id).first().data_type
+            if not data_type:
+                continue
+
             (
                 value_text,
                 value_num,
@@ -668,12 +790,7 @@ class TableService:
             elif data_type == 'user':
                 value_user_id = update['value']
 
-            table_data = TableData.query.filter_by(
-                tab_id=tab_id,
-                column_id=update['column_id'],
-                record_id=record_id,
-                tenant_id=g.tenant_id,
-            ).first()
+            table_data = existing_data_map.get(column_id)
 
             # Overwrite the entry in this table cell
             if table_data:
@@ -696,7 +813,7 @@ class TableService:
             else:
                 table_data = TableData(
                     tab_id=tab_id,
-                    column_id=update['column_id'],
+                    column_id=column_id,
                     record_id=record_id,
                     value_text=value_text,
                     value_num=value_num,
