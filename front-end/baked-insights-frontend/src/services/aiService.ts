@@ -127,7 +127,7 @@ export class AIService {
     try {
       const response = await together.chat.completions.create({
         messages: messagesWithContext,
-        model: "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+        model: "ServiceNow-AI/Apriel-1.5-15b-Thinker",
       });
       
       return response.choices[0]?.message?.content ?? '';

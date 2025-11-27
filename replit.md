@@ -36,6 +36,9 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-11-27**: Updated AI model from Llama 3.3 70B to ServiceNow Apriel 1.5 15B Thinker
+  - Changed model in aiService.ts from "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" to "ServiceNow-AI/Apriel-1.5-15b-Thinker"
+  - Model tested and verified working with Together AI
 - **2025-11-27**: Fixed frontend rendering performance for large tables
   - Implemented pagination in Table component (50 rows per page)
   - Prevents browser freeze when viewing tables with 7000+ rows
