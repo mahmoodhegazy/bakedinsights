@@ -36,6 +36,11 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-11-27**: Fixed column type updates for large tables
+  - Root cause: ORM row-by-row updates timeout for 7000+ row tables
+  - Solution: Added `_bulk_migrate_column_data` method using raw SQL UPDATE
+  - Now handles text, number, date, boolean, sku, lot-number conversions efficiently
+  - Fixed existing Large Table Test column types directly in database
 - **2025-11-27**: Updated AI model from Llama 3.3 70B to ServiceNow Apriel 1.5 15B Thinker
   - Changed model in aiService.ts from "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free" to "ServiceNow-AI/Apriel-1.5-15b-Thinker"
   - Model tested and verified working with Together AI

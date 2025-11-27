@@ -540,22 +540,68 @@ class TableService:
             return
         
         if new_data_type == 'boolean':
-            sql = text(f"""
-                UPDATE table_data 
-                SET {dest_col} = CASE 
-                    WHEN LOWER(CAST({source_col} AS TEXT)) IN ('true', 'yes', '1') THEN TRUE 
-                    ELSE FALSE 
-                END,
-                {source_col} = NULL
-                WHERE column_id = :column_id
-            """)
-        else:
+            if prev_data_type == 'boolean':
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = {source_col},
+                        {source_col} = NULL
+                    WHERE column_id = :column_id
+                """)
+            else:
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = CASE 
+                        WHEN LOWER(CAST({source_col} AS TEXT)) IN ('true', 'yes', '1', 't') THEN TRUE 
+                        ELSE FALSE 
+                    END,
+                    {source_col} = NULL
+                    WHERE column_id = :column_id
+                """)
+        elif new_data_type == 'number':
+            if prev_data_type == 'number':
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = {source_col},
+                        {source_col} = NULL
+                    WHERE column_id = :column_id
+                """)
+            else:
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = CAST(NULLIF(TRIM({source_col}), '') AS DOUBLE PRECISION),
+                        {source_col} = NULL
+                    WHERE column_id = :column_id AND {source_col} ~ '^-?[0-9]+(\\.[0-9]+)?$'
+                """)
+                db.session.execute(sql, {'column_id': column_id})
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {source_col} = NULL
+                    WHERE column_id = :column_id
+                """)
+        elif new_data_type == 'date':
+            if prev_data_type == 'date':
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = {source_col},
+                        {source_col} = NULL
+                    WHERE column_id = :column_id
+                """)
+            else:
+                sql = text(f"""
+                    UPDATE table_data 
+                    SET {dest_col} = CAST({source_col} AS DATE),
+                        {source_col} = NULL
+                    WHERE column_id = :column_id AND {source_col} IS NOT NULL
+                """)
+        elif new_data_type in ['text', 'long-text', 'sku', 'lot-number']:
             sql = text(f"""
                 UPDATE table_data 
                 SET {dest_col} = CAST({source_col} AS TEXT),
                     {source_col} = NULL
                 WHERE column_id = :column_id
             """)
+        else:
+            return
         
         db.session.execute(sql, {'column_id': column_id})
         db.session.commit()
