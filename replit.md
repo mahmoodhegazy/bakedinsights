@@ -5,7 +5,7 @@ BakedInsights is a full-stack web application for managing checklists and tables
 
 **Tech Stack:**
 - **Frontend**: React + TypeScript + Vite (Port 5000)
-- **Backend**: Python Flask (Port 5050)
+- **Backend**: Python Flask (Port 8000)
 - **Database**: PostgreSQL (Replit-managed, persistent)
 
 ## Architecture
@@ -16,15 +16,11 @@ BakedInsights is a full-stack web application for managing checklists and tables
 ## Running the Application
 
 ### Development Mode
-The frontend runs automatically via the "Frontend" workflow on port 5000.
+Both workflows run automatically:
+- **Frontend workflow** - Runs Vite dev server on port 5000
+- **Backend workflow** - Runs Flask server on port 8000
 
-To start the backend server during development, open a new Shell tab and run:
-```bash
-cd back-end/src
-python run.py
-```
-
-The backend will run on `http://localhost:5050`.
+The backend is accessible at `http://localhost:8000`.
 
 The frontend proxies all `/api/*` requests to the backend server.
 
@@ -40,6 +36,12 @@ The database has been initialized with test users (password: `Admin123`):
 - **staff** (staff, tenant: 1)
 
 ## Recent Changes
+- **2025-11-27**: Fixed frontend rendering performance for large tables
+  - Implemented pagination in Table component (50 rows per page)
+  - Prevents browser freeze when viewing tables with 7000+ rows
+  - Added page navigation controls with "Previous", "Next", and page number buttons
+  - Shows row count information (e.g., "Showing 1 - 50 of 7,296 rows")
+  - Changed backend port from 5050 to 8000 (required for Replit workflow support)
 - **2025-01-27**: MAJOR PERFORMANCE OPTIMIZATION - 100x improvement for large CSV imports
   - **Root cause identified**: SQLAlchemy ORM bulk operations are inherently slow (~35ms per INSERT)
   - **Solution**: Replaced ORM with raw psycopg2 `execute_values()` for bulk inserts
@@ -96,5 +98,5 @@ The database has been initialized with test users (password: `Admin123`):
 
 ## Development Notes
 - The frontend is served through Replit's webview on port 5000
-- Backend runs on localhost:5050 and is not directly accessible from outside
+- Backend runs on localhost:8000 and is not directly accessible from outside
 - API requests from frontend are proxied through Vite
