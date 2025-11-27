@@ -41,9 +41,10 @@ The database has been initialized with test users (password: `Admin123`):
 
 ## Recent Changes
 - **2025-01-27**: Updated table_service.py with optimized bulk operations
-  - `bulk_insert_table_data`: Uses `bulk_save_objects` for records and table data
+  - `bulk_insert_table_data`: Uses `add_all` + `flush` for records (ensures IDs populated)
   - `update_table_data`: Batch fetches columns and existing data (2 queries vs per-cell)
   - `create_table`: Uses bulk insert for cell data instead of per-row updates
+  - Fixed: `bulk_save_objects` replaced with `add_all+flush` for PostgreSQL ID population
   - Performance: 1000 rows × 10 columns = ~3 queries (was 20,000+)
 - **2025-01-12**: Fixed CSV import memory issue for large files
   - Implemented bulk insert optimization (reduces 20,000+ queries to ~3 queries)
