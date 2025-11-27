@@ -237,18 +237,15 @@ class TableService:
         if not column:
             return False
 
-        data = column.table_data
         try:
-            for d in data:
-                db.session.delete(d)
-            db.session.commit()
-
-            db.session.delete(column)
+            # Delete data first, then column using bulk operations
+            TableData.query.filter_by(column_id=column_id).delete(synchronize_session=False)
+            TableColumn.query.filter_by(id=column_id).delete(synchronize_session=False)
             db.session.commit()
             return True
         except Exception as e:
             db.session.rollback()
-            raise Exception(f"Error deleting user: {str(e)}")
+            raise Exception(f"Error deleting column: {str(e)}")
 
     @staticmethod
     def delete_table(table_id: int) -> bool:
@@ -265,32 +262,30 @@ class TableService:
         if not table:
             return False
 
-        shares = table.shares
-        tabs = table.tabs
-        records, columns, data = [], [], []
-        for t in tabs:
-            records += t.records
-            columns += t.columns
-            data += t.table_data
-
         try:
-            for s in shares:
-                db.session.delete(s)
-            for t in tabs:
-                db.session.delete(t)
-            for r in records:
-                db.session.delete(r)
-            for c in columns:
-                db.session.delete(c)
-            for d in data:
-                db.session.delete(d)
-
-            db.session.delete(table)
+            # Get tab IDs for bulk deletion
+            tab_ids = [t.id for t in table.tabs]
+            
+            if tab_ids:
+                # Delete in correct order using bulk DELETE statements (much faster)
+                # 1. TableData (references records, columns, tabs)
+                TableData.query.filter(TableData.tab_id.in_(tab_ids)).delete(synchronize_session=False)
+                # 2. TableRecord (references tabs)
+                TableRecord.query.filter(TableRecord.tab_id.in_(tab_ids)).delete(synchronize_session=False)
+                # 3. TableColumn (references tabs)
+                TableColumn.query.filter(TableColumn.tab_id.in_(tab_ids)).delete(synchronize_session=False)
+            
+            # 4. TableShare (references table)
+            TableShare.query.filter_by(table_id=table_id).delete(synchronize_session=False)
+            # 5. TableTab (references table)
+            TableTab.query.filter_by(table_id=table_id).delete(synchronize_session=False)
+            # 6. Table itself - use bulk delete to avoid stale session issues
+            Table.query.filter_by(id=table_id).delete(synchronize_session=False)
             db.session.commit()
             return True
         except Exception as e:
             db.session.rollback()
-            raise Exception(f"Error deleting user: {str(e)}")
+            raise Exception(f"Error deleting table: {str(e)}")
 
     @staticmethod
     def delete_tab(tab_id: int) -> bool:
@@ -307,18 +302,16 @@ class TableService:
         if not tab:
             return False
 
-        records = tab.records
-        columns = tab.columns
-        data = tab.table_data
         try:
-            for d in data:
-                db.session.delete(d)
-            for r in records:
-                db.session.delete(r)
-            for c in columns:
-                db.session.delete(c)
-
-            db.session.delete(tab)
+            # Delete in correct order using bulk DELETE statements (much faster)
+            # 1. TableData (references records, columns, tabs)
+            TableData.query.filter_by(tab_id=tab_id).delete(synchronize_session=False)
+            # 2. TableRecord (references tabs)
+            TableRecord.query.filter_by(tab_id=tab_id).delete(synchronize_session=False)
+            # 3. TableColumn (references tabs)
+            TableColumn.query.filter_by(tab_id=tab_id).delete(synchronize_session=False)
+            # 4. Tab itself - use bulk delete to avoid stale session issues
+            TableTab.query.filter_by(id=tab_id).delete(synchronize_session=False)
             db.session.commit()
             return True
         except Exception as e:
@@ -598,10 +591,9 @@ class TableService:
         """
         record = TableRecord.query.filter_by(id=record_id, tenant_id=g.tenant_id).first()
         if record:
-            table_data = record.table_data
-            for d in table_data:
-                db.session.delete(d)
-            db.session.delete(record)
+            # Delete data first, then record using bulk operations
+            TableData.query.filter_by(record_id=record_id).delete(synchronize_session=False)
+            TableRecord.query.filter_by(id=record_id).delete(synchronize_session=False)
             db.session.commit()
         return record
 
