@@ -622,7 +622,8 @@ class TableService:
         Returns:
             List of created TableData instances
         """
-        # Create all records at once
+        # Create all records at once using add_all + flush (NOT bulk_save_objects)
+        # bulk_save_objects doesn't reliably return IDs with PostgreSQL
         records = []
         for _ in rows_data:
             record = TableRecord(
@@ -631,8 +632,8 @@ class TableService:
             )
             records.append(record)
 
-        db.session.bulk_save_objects(records, return_defaults=True)
-        db.session.commit()
+        db.session.add_all(records)
+        db.session.flush()  # This ensures IDs are populated via INSERT RETURNING
 
         # Prepare all table data entries for bulk insert
         table_data_entries = []
