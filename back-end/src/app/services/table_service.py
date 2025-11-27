@@ -457,11 +457,12 @@ class TableService:
     @staticmethod
     def update_table_column(column_id: int, updates: dict) -> TableColumn:
         """
-        Update table info
+        Update table column name and/or data type.
+        Uses bulk SQL updates for data type changes to handle large tables efficiently.
 
         Args:
-            table_id: ID of table being updated
-            name: new table name
+            column_id: ID of column being updated
+            updates: dict with optional 'name' and 'data_type' keys
 
         Returns:
             Updated TableColumn instance
@@ -473,63 +474,21 @@ class TableService:
 
             if "data_type" in updates:
                 prev_data_type = column.data_type
-                column.data_type = data_type = updates["data_type"]
-                for table_data in column.table_data:
-                    prev_value = None
-                    if prev_data_type in ['text', 'long-text']:
-                        prev_value = table_data.value_text
-                    elif prev_data_type == 'number':
-                        prev_value = table_data.value_num
-                    elif prev_data_type == 'boolean':
-                        prev_value = table_data.value_bool
-                    elif prev_data_type == 'date':
-                        prev_value = table_data.value_date
-                    elif prev_data_type == 'file':
-                        raise Exception("Cannot convert field of type 'file' to another format")
-                    elif prev_data_type == 'sku':
-                        prev_value = table_data.value_sku
-                    elif prev_data_type == 'lot-number':
-                        prev_value = table_data.value_lotnum
-                    elif prev_data_type == 'user':
-                        raise Exception("Cannot convert field of type 'user' to another format")
-
-                    (
-                        value_text,
-                        value_num,
-                        value_bool,
-                        value_date,
-                        value_fpath,
-                        value_sku,
-                        value_lotnum,
-                        value_user_id,
-                    ) = None, None, None, None, None, None, None, None
-                    if data_type in ['text', 'long-text']:
-                        value_text = prev_value
-                    elif data_type == 'number':
-                        value_num = prev_value
-                    elif data_type == 'boolean':
-                        value_bool = prev_value in ["true", "True", "TRUE", True, "yes", "YES", "Yes"]
-                    elif data_type == 'date':
-                        value_date = prev_value
-                    elif data_type == 'file':
-                        raise Exception("Cannot convert an existing field to type 'file'")
-                    elif data_type == 'sku':
-                        value_sku = prev_value
-                    elif data_type == 'lot-number':
-                        value_lotnum = prev_value
-                    elif data_type == 'user':
-                        raise Exception("Cannot convert an existing field to type 'user'")
-
-                    table_data.value_text = value_text
-                    table_data.value_num = value_num
-                    table_data.value_bool = value_bool
-                    table_data.value_date = value_date
-                    table_data.value_sku = value_sku
-                    table_data.value_lotnum = value_lotnum
-                    table_data.value_user_id = value_user_id
-                    table_data.value_fpath = value_fpath
-
-                    db.session.add(table_data)
+                new_data_type = updates["data_type"]
+                
+                if prev_data_type == 'file':
+                    raise Exception("Cannot convert field of type 'file' to another format")
+                if prev_data_type == 'user':
+                    raise Exception("Cannot convert field of type 'user' to another format")
+                if new_data_type == 'file':
+                    raise Exception("Cannot convert an existing field to type 'file'")
+                if new_data_type == 'user':
+                    raise Exception("Cannot convert an existing field to type 'user'")
+                
+                if prev_data_type != new_data_type:
+                    TableService._bulk_migrate_column_data(column_id, prev_data_type, new_data_type)
+                
+                column.data_type = new_data_type
 
         else:
             column = TableColumn(
@@ -542,6 +501,64 @@ class TableService:
 
         db.session.commit()
         return column
+
+    @staticmethod
+    def _bulk_migrate_column_data(column_id: int, prev_data_type: str, new_data_type: str):
+        """
+        Bulk migrate data values from one column type to another using raw SQL.
+        This is much faster than ORM row-by-row updates for large tables.
+        """
+        from sqlalchemy import text
+        
+        source_column_map = {
+            'text': 'value_text',
+            'long-text': 'value_text',
+            'number': 'value_num',
+            'boolean': 'value_bool',
+            'date': 'value_date',
+            'sku': 'value_sku',
+            'lot-number': 'value_lotnum',
+        }
+        
+        dest_column_map = {
+            'text': 'value_text',
+            'long-text': 'value_text',
+            'number': 'value_num',
+            'boolean': 'value_bool',
+            'date': 'value_date',
+            'sku': 'value_sku',
+            'lot-number': 'value_lotnum',
+        }
+        
+        source_col = source_column_map.get(prev_data_type)
+        dest_col = dest_column_map.get(new_data_type)
+        
+        if not source_col or not dest_col:
+            return
+        
+        if source_col == dest_col:
+            return
+        
+        if new_data_type == 'boolean':
+            sql = text(f"""
+                UPDATE table_data 
+                SET {dest_col} = CASE 
+                    WHEN LOWER(CAST({source_col} AS TEXT)) IN ('true', 'yes', '1') THEN TRUE 
+                    ELSE FALSE 
+                END,
+                {source_col} = NULL
+                WHERE column_id = :column_id
+            """)
+        else:
+            sql = text(f"""
+                UPDATE table_data 
+                SET {dest_col} = CAST({source_col} AS TEXT),
+                    {source_col} = NULL
+                WHERE column_id = :column_id
+            """)
+        
+        db.session.execute(sql, {'column_id': column_id})
+        db.session.commit()
 
     @staticmethod
     def update_tab(tab_id: int, name: str) -> Table:
