@@ -660,10 +660,7 @@ class TableService:
                 if data_type in ['text', 'long-text']:
                     value_text = value
                 elif data_type == 'number':
-                    try:
-                        value_num = float(value) if value not in [None, ''] else None
-                    except (ValueError, TypeError):
-                        value_num = None
+                    value_num = value
                 elif data_type == 'boolean':
                     value_bool = value in ["true", "True", "TRUE", True, "yes", "YES", "Yes"]
                 elif data_type == 'date':
@@ -773,10 +770,7 @@ class TableService:
             if data_type in ['text', 'long-text']:
                 value_text = update['value']
             elif data_type == 'number':
-                try:
-                    value_num = float(update['value']) if update['value'] not in [None, ''] else None
-                except (ValueError, TypeError):
-                    value_num = None
+                value_num = update['value']
             elif data_type == 'boolean':
                 value_bool = update['value'] in ["true", "True", "TRUE", True]
             elif data_type == 'date':
